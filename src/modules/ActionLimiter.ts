@@ -18,7 +18,7 @@ export class ActionLimiter {
    * Record a security event and check if limit exceeded
    * Returns the count and whether limit was exceeded
    */
-  async recordAndCheck(event: SecurityEvent): Promise<{ count: number; limitExceeded: boolean; limit?: number }> {
+  async recordAndCheck(event: SecurityEvent): Promise<{ count: number; limitExceeded: boolean; limit?: number; resetTime?: number }> {
     // Get limit configuration
     const limitConfig = await this.configService.getLimit(event.guildId, event.action);
 
@@ -43,6 +43,17 @@ export class ActionLimiter {
     const count = timestamps.length;
     const limitExceeded = count > limitConfig.limitCount;
 
+    // Calculate reset time (when the oldest action in the window expires)
+    // If we have timestamps, the window slides. The count drops when the oldest timestamp + windowMs is reached.
+    // However, for a strict "reset", it's usually when the *current* window expires if we consider it fixed,
+    // but with a sliding window, it's when the oldest relevant action falls out.
+    // Let's return the time when the count will drop below the limit.
+    // Actually, simply returning `now + windowMs` is a safe "full reset",
+    // but `timestamps[0] + limitConfig.windowMs` is when the *first* action expires.
+
+    const oldestTimestamp = timestamps[0] || now;
+    const resetTime = oldestTimestamp + limitConfig.windowMs;
+
     // Record to DB asynchronously
     this.recordActionAsync(event);
 
@@ -50,6 +61,7 @@ export class ActionLimiter {
       count,
       limitExceeded,
       limit: limitConfig.limitCount,
+      resetTime
     };
   }
 

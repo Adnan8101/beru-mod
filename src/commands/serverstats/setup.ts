@@ -100,12 +100,10 @@ const slashCommand: SlashCommand = {
           });
         };
 
-        totalChannel = await createVc(`Total: ${totalMembers}`);
-        usersChannel = await createVc(`Users: ${users}`);
-        botsChannel = await createVc(`Bots: ${bots}`);
-        onlineChannel = await createVc(`🟢 Online: ${online}`);
-        idleChannel = await createVc(`🌙 Idle: ${idle}`);
-        dndChannel = await createVc(`⛔ DND: ${dnd}`);
+        usersChannel = await createVc(`Members : ${users}`);
+        botsChannel = await createVc(`Bots : ${bots}`);
+        onlineChannel = await createVc(`🟢 ${online} | 🌙 ${idle} | ⛔ ${dnd}`);
+        totalChannel = await createVc(`All : ${totalMembers}`);
 
       } else {
         const createText = async (name: string) => {
@@ -123,12 +121,10 @@ const slashCommand: SlashCommand = {
           });
         };
 
-        totalChannel = await createText(`total-${totalMembers}`);
-        usersChannel = await createText(`users-${users}`);
+        usersChannel = await createText(`members-${users}`);
         botsChannel = await createText(`bots-${bots}`);
-        onlineChannel = await createText(`online-${online}`);
-        idleChannel = await createText(`idle-${idle}`);
-        dndChannel = await createText(`dnd-${dnd}`);
+        onlineChannel = await createText(`status-${online}-${idle}-${dnd}`);
+        totalChannel = await createText(`all-${totalMembers}`);
       }
 
       // Save to database
@@ -140,9 +136,9 @@ const slashCommand: SlashCommand = {
         totalChannelId: totalChannel.id,
         usersChannelId: usersChannel.id,
         botsChannelId: botsChannel.id,
-        onlineChannelId: onlineChannel.id,
-        idleChannelId: idleChannel.id,
-        dndChannelId: dndChannel.id
+        onlineChannelId: onlineChannel.id, // Used for Status channel
+        idleChannelId: undefined,
+        dndChannelId: undefined
       });
 
       const embed = new EmbedBuilder()
@@ -258,12 +254,10 @@ const prefixCommand: PrefixCommand = {
           });
         };
 
-        totalChannel = await createVc(`Total: ${totalMembers}`);
-        usersChannel = await createVc(`Users: ${users}`);
-        botsChannel = await createVc(`Bots: ${bots}`);
-        onlineChannel = await createVc(`🟢 Online: ${online}`);
-        idleChannel = await createVc(`🌙 Idle: ${idle}`);
-        dndChannel = await createVc(`⛔ DND: ${dnd}`);
+        usersChannel = await createVc(`Members : ${users}`);
+        botsChannel = await createVc(`Bots : ${bots}`);
+        onlineChannel = await createVc(`🟢 ${online} | 🌙 ${idle} | ⛔ ${dnd}`);
+        totalChannel = await createVc(`All : ${totalMembers}`);
 
       } else {
         const createText = async (name: string) => {
@@ -281,12 +275,10 @@ const prefixCommand: PrefixCommand = {
           });
         };
 
-        totalChannel = await createText(`total-${totalMembers}`);
-        usersChannel = await createText(`users-${users}`);
+        usersChannel = await createText(`members-${users}`);
         botsChannel = await createText(`bots-${bots}`);
-        onlineChannel = await createText(`online-${online}`);
-        idleChannel = await createText(`idle-${idle}`);
-        dndChannel = await createText(`dnd-${dnd}`);
+        onlineChannel = await createText(`status-${online}-${idle}-${dnd}`);
+        totalChannel = await createText(`all-${totalMembers}`);
       }
 
       // Save to database
@@ -298,9 +290,9 @@ const prefixCommand: PrefixCommand = {
         totalChannelId: totalChannel.id,
         usersChannelId: usersChannel.id,
         botsChannelId: botsChannel.id,
-        onlineChannelId: onlineChannel.id,
-        idleChannelId: idleChannel.id,
-        dndChannelId: dndChannel.id
+        onlineChannelId: onlineChannel.id, // Used for Status channel
+        idleChannelId: undefined,
+        dndChannelId: undefined
       });
 
       const embed = new EmbedBuilder()

@@ -51,11 +51,17 @@ async function updateServerStats(guild: Guild): Promise<{ updated: number; error
         }
       };
 
-      await updateChannel(panel.totalChannelId, panel.channelType === 'vc' ? `Total: ${totalMembers}` : `total-${totalMembers}`);
-      await updateChannel(panel.usersChannelId, panel.channelType === 'vc' ? `Users: ${users}` : `users-${users}`);
-      await updateChannel(panel.botsChannelId, panel.channelType === 'vc' ? `Bots: ${bots}` : `bots-${bots}`);
+      await updateChannel(panel.usersChannelId, panel.channelType === 'vc' ? `Members : ${users}` : `members-${users}`);
+      await updateChannel(panel.botsChannelId, panel.channelType === 'vc' ? `Bots : ${bots}` : `bots-${bots}`);
 
-      if (panel.onlineChannelId) await updateChannel(panel.onlineChannelId, panel.channelType === 'vc' ? `🟢 Online: ${online}` : `online-${online}`);
+      // Status channel (stored in onlineChannelId)
+      if (panel.onlineChannelId) {
+        await updateChannel(panel.onlineChannelId, panel.channelType === 'vc' ? `🟢 ${online} | 🌙 ${idle} | ⛔ ${dnd}` : `status-${online}-${idle}-${dnd}`);
+      }
+
+      await updateChannel(panel.totalChannelId, panel.channelType === 'vc' ? `All : ${totalMembers}` : `all-${totalMembers}`);
+
+      // Legacy support (if idle/dnd still exist in DB)
       if (panel.idleChannelId) await updateChannel(panel.idleChannelId, panel.channelType === 'vc' ? `🌙 Idle: ${idle}` : `idle-${idle}`);
       if (panel.dndChannelId) await updateChannel(panel.dndChannelId, panel.channelType === 'vc' ? `⛔ DND: ${dnd}` : `dnd-${dnd}`);
 

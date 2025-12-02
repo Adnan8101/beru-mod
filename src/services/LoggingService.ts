@@ -178,6 +178,7 @@ export class LoggingService {
     count?: number;
     punishment?: string;
     caseId?: number;
+    resetTime?: number;
   }): EmbedBuilder {
     const description = [
       `**Executor:** <@${data.executorId}> (\`${data.executorId}\`)`,
@@ -186,6 +187,7 @@ export class LoggingService {
       data.count ? `**Count:** ${data.count}` : null,
       data.punishment ? `**Punishment:** ${data.punishment.toUpperCase()}` : null,
       data.caseId ? `**Case ID:** #${data.caseId}` : null,
+      data.resetTime ? `**Limit Resets:** <t:${Math.floor(data.resetTime / 1000)}:R>` : null,
     ].filter(Boolean).join('\n');
 
     return new EmbedBuilder()

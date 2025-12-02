@@ -71,10 +71,7 @@ import * as leaveCommand from './commands/invites_welcome/leave';
 import * as leaveTestCommand from './commands/invites_welcome/leave-test';
 import * as testWelcomeCommand from './commands/invites_welcome/test-welcome';
 // Server Stats Commands
-import * as setupCommand from './commands/serverstats/setup';
-import * as panelCommand from './commands/serverstats/panel';
-import * as refreshCommand from './commands/serverstats/refresh';
-import * as deletePanelCommand from './commands/serverstats/delete-panel';
+import * as serverStatsCommand from './commands/serverstats/serverstats';
 
 // Load environment variables
 dotenv.config();
@@ -103,6 +100,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildModeration,
     GatewayIntentBits.GuildInvites,
+    GatewayIntentBits.GuildPresences,
   ],
 });
 
@@ -201,10 +199,7 @@ function registerCommands() {
   commands.set(testWelcomeCommand.data.name, testWelcomeCommand);
 
   // Server Stats commands
-  commands.set(setupCommand.data.name, setupCommand);
-  commands.set(panelCommand.data.name, panelCommand);
-  commands.set(refreshCommand.data.name, refreshCommand);
-  commands.set(deletePanelCommand.data.name, deletePanelCommand);
+  commands.set(serverStatsCommand.data.name, serverStatsCommand);
 
   console.log('✔ Commands registered:', Array.from(commands.keys()).join(', '));
 }
@@ -422,6 +417,15 @@ function setupEventHandlers() {
     }
   });
 
+  // Ban events for stats updates
+  client.on('guildBanAdd', async ban => {
+    await serverStatsCommand.updateServerStats(ban.guild).catch(console.error);
+  });
+
+  client.on('guildBanRemove', async ban => {
+    await serverStatsCommand.updateServerStats(ban.guild).catch(console.error);
+  });
+
   // Welcome/Leave event handling
   client.on('guildMemberAdd', async member => {
     try {
@@ -489,6 +493,9 @@ function setupEventHandlers() {
           await welcomeChannel.send(message.replace(/{user}/g, member.toString()).replace(/{server}/g, member.guild.name));
         }
       }
+
+      // Update server stats
+      await serverStatsCommand.updateServerStats(member.guild).catch(console.error);
     } catch (error) {
       console.error('Error handling member join:', error);
     }
@@ -511,7 +518,7 @@ function setupEventHandlers() {
             let action = 'left';
             try {
               const auditLogs = await member.guild.fetchAuditLogs({ limit: 5 });
-              const entry = auditLogs.entries.find(e => e.target?.id === member.id && (e.action === 20 || e.action === 22)); // 20: Kick, 22: Ban Add
+              const entry = auditLogs.entries.find(e => e.targetId === member.id && (e.action === 20 || e.action === 22)); // 20: Kick, 22: Ban Add
               if (entry) {
                 if (entry.action === 20) action = 'was kicked';
                 if (entry.action === 22) action = 'was banned';
@@ -550,6 +557,9 @@ function setupEventHandlers() {
           await leaveChannel.send(finalMessage.replace(/{user}/g, member.user.tag).replace(/{server}/g, member.guild.name));
         }
       }
+
+      // Update server stats
+      await serverStatsCommand.updateServerStats(member.guild).catch(console.error);
     } catch (error) {
       console.error('Error handling member leave:', error);
     }
@@ -604,14 +614,14 @@ function startPeriodicTasks() {
     }
   }, 12 * 60 * 60 * 1000); // 12 hours
 
-  // Update server stats every 10 minutes
+  // Update server stats every 30 minutes
   setInterval(async () => {
     try {
       console.log('🔄 Updating server stats...');
       let totalUpdated = 0;
       for (const [guildId, guild] of client.guilds.cache) {
         try {
-          const { updated } = await refreshCommand.updateServerStats(guild);
+          const { updated } = await serverStatsCommand.updateServerStats(guild);
           totalUpdated += updated;
         } catch (error) {
           console.error(`Failed to update stats for guild ${guildId}:`, error);
@@ -623,7 +633,7 @@ function startPeriodicTasks() {
     } catch (error) {
       console.error('Failed to update server stats:', error);
     }
-  }, 10 * 60 * 1000); // 10 minutes
+  }, 30 * 60 * 1000); // 30 minutes
 
   console.log('✔ Periodic tasks started');
 }

@@ -116,6 +116,9 @@ export class AuditLogMonitor extends EventEmitter {
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
 
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
+
     // Skip if action is old (more than 5 seconds)
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
@@ -159,6 +162,9 @@ export class AuditLogMonitor extends EventEmitter {
 
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
+
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
 
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
@@ -209,6 +215,9 @@ export class AuditLogMonitor extends EventEmitter {
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
 
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
+
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
 
@@ -251,6 +260,9 @@ export class AuditLogMonitor extends EventEmitter {
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
 
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
+
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
 
@@ -292,6 +304,9 @@ export class AuditLogMonitor extends EventEmitter {
 
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
+
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
 
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
@@ -345,6 +360,9 @@ export class AuditLogMonitor extends EventEmitter {
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
 
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
+
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
 
@@ -388,6 +406,9 @@ export class AuditLogMonitor extends EventEmitter {
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
 
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
+
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
 
@@ -429,6 +450,9 @@ export class AuditLogMonitor extends EventEmitter {
 
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
+
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
 
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
@@ -484,6 +508,9 @@ export class AuditLogMonitor extends EventEmitter {
 
     const auditEntry = auditLogs.entries.first();
     if (!auditEntry || !auditEntry.executor) return;
+
+    // Ignore actions by the bot itself
+    if (auditEntry.executor.id === this.client.user?.id) return;
 
     const ageMs = Date.now() - auditEntry.createdTimestamp;
     if (ageMs > 5000) return;
@@ -554,7 +581,7 @@ export class AuditLogMonitor extends EventEmitter {
         );
 
         // 3. Execute punishment
-        await this.executor.executePunishment(event, result.count, result.limit!);
+        await this.executor.executePunishment(event, result.count, result.limit!, result.resetTime);
 
         // Emit event for external listeners
         this.emit('limitExceeded', { event, count: result.count, limit: result.limit });

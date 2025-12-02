@@ -27,12 +27,18 @@ export class Executor {
   /**
    * Execute punishment for a security event
    */
-  async executePunishment(event: SecurityEvent, count: number, limit: number): Promise<void> {
+  async executePunishment(event: SecurityEvent, count: number, limit: number, resetTime?: number): Promise<void> {
     const lockKey = `${event.guildId}:${event.userId}`;
 
     // Check if already processing this executor
     if (this.activeLocks.has(lockKey)) {
       console.log(`Skipping duplicate punishment for ${lockKey}`);
+      return;
+    }
+
+    // FAILSAFE: Bot should never punish itself
+    if (event.userId === this.client.user?.id) {
+      console.log('🛡️ Prevented bot self-punishment');
       return;
     }
 
@@ -119,6 +125,7 @@ export class Executor {
           count,
           punishment: punishmentConfig.punishment,
           caseId: modCase.caseNumber,
+          resetTime
         });
 
         await this.loggingService.logSecurity(event.guildId, embed);
