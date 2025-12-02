@@ -148,11 +148,16 @@ export async function execute(
   }
 }
 
+import { checkCommandPermission } from '../../utils/permissionHelpers';
+
 async function handleEnable(
   interaction: ChatInputCommandInteraction,
   services: { configService: ConfigService; loggingService: LoggingService },
   guildId: string
 ): Promise<void> {
+  // Permission Check: Owner Only
+  if (!await checkCommandPermission(interaction, { ownerOnly: true })) return;
+
   await interaction.deferReply();
 
   const actionsString = interaction.options.getString('actions', true);
@@ -286,6 +291,9 @@ async function handleSetup(
   services: { configService: ConfigService },
   guildId: string
 ): Promise<void> {
+  // Permission Check: Role > Bot
+  if (!await checkCommandPermission(interaction, { ownerOnly: false })) return;
+
   await interaction.deferReply();
 
   const allProtections = Object.values(ProtectionAction);
@@ -343,6 +351,9 @@ async function handleDisable(
   services: { configService: ConfigService },
   guildId: string
 ): Promise<void> {
+  // Permission Check: Owner Only
+  if (!await checkCommandPermission(interaction, { ownerOnly: true })) return;
+
   await interaction.deferReply();
 
   await services.configService.disableAntiNuke(guildId);

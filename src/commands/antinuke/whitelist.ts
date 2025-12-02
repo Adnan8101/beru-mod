@@ -1,7 +1,3 @@
-/**
- * Whitelist Command - Manage Anti-Nuke and AutoMod whitelist entries
- * NOTE: AutoMod whitelist is managed via /automod whitelist subcommands
- */
 
 import {
   ChatInputCommandInteraction,
@@ -33,25 +29,6 @@ export const data = new SlashCommandBuilder()
           .setDescription('Role to whitelist')
           .setRequired(true)
       )
-      .addStringOption(option =>
-        option
-          .setName('category')
-          .setDescription('What to whitelist for')
-          .setRequired(true)
-          .addChoices(
-            { name: 'Banning Members', value: WhitelistCategory.BAN_MEMBERS },
-            { name: 'Kicking Members', value: WhitelistCategory.KICK_MEMBERS },
-            { name: 'Deleting Roles', value: WhitelistCategory.DELETE_ROLES },
-            { name: 'Creating Roles', value: WhitelistCategory.CREATE_ROLES },
-            { name: 'Deleting Channels', value: WhitelistCategory.DELETE_CHANNELS },
-            { name: 'Creating Channels', value: WhitelistCategory.CREATE_CHANNELS },
-            { name: 'Adding Bots', value: WhitelistCategory.ADD_BOTS },
-            { name: 'Dangerous Permissions', value: WhitelistCategory.DANGEROUS_PERMS },
-            { name: 'Giving Admin Roles', value: WhitelistCategory.GIVE_ADMIN_ROLE },
-            { name: 'Pruning Members', value: WhitelistCategory.PRUNE_MEMBERS },
-            { name: 'ALL (bypass everything)', value: WhitelistCategory.ALL }
-          )
-      )
   )
   .addSubcommand(subcommand =>
     subcommand
@@ -62,25 +39,6 @@ export const data = new SlashCommandBuilder()
           .setName('user')
           .setDescription('User to whitelist')
           .setRequired(true)
-      )
-      .addStringOption(option =>
-        option
-          .setName('category')
-          .setDescription('What to whitelist for')
-          .setRequired(true)
-          .addChoices(
-            { name: 'Banning Members', value: WhitelistCategory.BAN_MEMBERS },
-            { name: 'Kicking Members', value: WhitelistCategory.KICK_MEMBERS },
-            { name: 'Deleting Roles', value: WhitelistCategory.DELETE_ROLES },
-            { name: 'Creating Roles', value: WhitelistCategory.CREATE_ROLES },
-            { name: 'Deleting Channels', value: WhitelistCategory.DELETE_CHANNELS },
-            { name: 'Creating Channels', value: WhitelistCategory.CREATE_CHANNELS },
-            { name: 'Adding Bots', value: WhitelistCategory.ADD_BOTS },
-            { name: 'Dangerous Permissions', value: WhitelistCategory.DANGEROUS_PERMS },
-            { name: 'Giving Admin Roles', value: WhitelistCategory.GIVE_ADMIN_ROLE },
-            { name: 'Pruning Members', value: WhitelistCategory.PRUNE_MEMBERS },
-            { name: 'ALL (bypass everything)', value: WhitelistCategory.ALL }
-          )
       )
   )
   .addSubcommand(subcommand =>
@@ -93,25 +51,6 @@ export const data = new SlashCommandBuilder()
           .setDescription('Role to remove')
           .setRequired(true)
       )
-      .addStringOption(option =>
-        option
-          .setName('category')
-          .setDescription('Category to remove (leave empty for all)')
-          .setRequired(false)
-          .addChoices(
-            { name: 'Banning Members', value: WhitelistCategory.BAN_MEMBERS },
-            { name: 'Kicking Members', value: WhitelistCategory.KICK_MEMBERS },
-            { name: 'Deleting Roles', value: WhitelistCategory.DELETE_ROLES },
-            { name: 'Creating Roles', value: WhitelistCategory.CREATE_ROLES },
-            { name: 'Deleting Channels', value: WhitelistCategory.DELETE_CHANNELS },
-            { name: 'Creating Channels', value: WhitelistCategory.CREATE_CHANNELS },
-            { name: 'Adding Bots', value: WhitelistCategory.ADD_BOTS },
-            { name: 'Dangerous Permissions', value: WhitelistCategory.DANGEROUS_PERMS },
-            { name: 'Giving Admin Roles', value: WhitelistCategory.GIVE_ADMIN_ROLE },
-            { name: 'Pruning Members', value: WhitelistCategory.PRUNE_MEMBERS },
-            { name: 'ALL', value: WhitelistCategory.ALL }
-          )
-      )
   )
   .addSubcommand(subcommand =>
     subcommand
@@ -122,42 +61,6 @@ export const data = new SlashCommandBuilder()
           .setName('user')
           .setDescription('User to remove')
           .setRequired(true)
-      )
-      .addStringOption(option =>
-        option
-          .setName('category')
-          .setDescription('Category to remove (leave empty for all)')
-          .setRequired(false)
-          .addChoices(
-            { name: 'Banning Members', value: WhitelistCategory.BAN_MEMBERS },
-            { name: 'Kicking Members', value: WhitelistCategory.KICK_MEMBERS },
-            { name: 'Deleting Roles', value: WhitelistCategory.DELETE_ROLES },
-            { name: 'Creating Roles', value: WhitelistCategory.CREATE_ROLES },
-            { name: 'Deleting Channels', value: WhitelistCategory.DELETE_CHANNELS },
-            { name: 'Creating Channels', value: WhitelistCategory.CREATE_CHANNELS },
-            { name: 'Adding Bots', value: WhitelistCategory.ADD_BOTS },
-            { name: 'Dangerous Permissions', value: WhitelistCategory.DANGEROUS_PERMS },
-            { name: 'Giving Admin Roles', value: WhitelistCategory.GIVE_ADMIN_ROLE },
-            { name: 'Pruning Members', value: WhitelistCategory.PRUNE_MEMBERS },
-            { name: 'ALL', value: WhitelistCategory.ALL }
-          )
-      )
-  )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName('view')
-      .setDescription('View whitelist for a role or user')
-      .addRoleOption(option =>
-        option
-          .setName('role')
-          .setDescription('Role to view')
-          .setRequired(false)
-      )
-      .addUserOption(option =>
-        option
-          .setName('user')
-          .setDescription('User to view')
-          .setRequired(false)
       )
   )
   .addSubcommand(subcommand =>
@@ -194,8 +97,10 @@ export const slashCommand: SlashCommand = {
   category: 'antinuke',
   syntax: '/whitelist <add_role|add_user|remove_role|remove_user|view|list|reset>',
   permission: 'Administrator',
-  example: '/whitelist add_user user:@user category:ALL'
+  example: '/whitelist add_user user:@user'
 };
+
+import { checkCommandPermission } from '../../utils/permissionHelpers';
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
@@ -204,22 +109,8 @@ export async function execute(
   const subcommand = interaction.options.getSubcommand();
   const guildId = interaction.guildId!;
 
-  // Permission Check: Owner OR Role > Bot
-  const member = interaction.member as import('discord.js').GuildMember;
-  const botMember = interaction.guild!.members.me!;
-
-  if (interaction.user.id !== interaction.guild!.ownerId) {
-    if (member.roles.highest.position <= botMember.roles.highest.position) {
-      const errorEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.ERROR)
-        .setTitle('Permission Denied')
-        .setDescription(
-          'You must be the **Server Owner** or have a **Role higher than the Bot** to manage whitelists.'
-        );
-      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-      return;
-    }
-  }
+  // Permission Check: Role > Bot
+  if (!await checkCommandPermission(interaction, { ownerOnly: false })) return;
 
   switch (subcommand) {
     case 'add_role':
@@ -233,9 +124,6 @@ export async function execute(
       break;
     case 'remove_user':
       await handleRemoveUser(interaction, services, guildId);
-      break;
-    case 'view':
-      await handleView(interaction, services, guildId);
       break;
     case 'list':
       await handleList(interaction, services, guildId);
@@ -254,7 +142,6 @@ async function handleAddRole(
   await interaction.deferReply();
 
   const role = interaction.options.getRole('role', true);
-  const category = interaction.options.getString('category', true) as WhitelistCategory;
   const guild = interaction.guild!;
   const botMember = guild.members.me!;
 
@@ -281,37 +168,20 @@ async function handleAddRole(
   }
 
   // Warn if role has Administrator permission and whitelisting for ALL
-  if (typeof role.permissions !== 'string' && role.permissions.has(PermissionFlagsBits.Administrator) && category === WhitelistCategory.ALL) {
+  // This warning will be shown after category selection if ALL is chosen
+  if (typeof role.permissions !== 'string' && role.permissions.has(PermissionFlagsBits.Administrator)) {
     const embed = new EmbedBuilder()
       .setTitle('⚠️ Security Warning')
       .setDescription(
-        `${role} has **Administrator** permission and you're whitelisting it for **ALL** categories. ` +
-        `This means users with this role will bypass all anti-nuke protections.`
+        `${role} has **Administrator** permission. Whitelisting this role for 'ALL' categories ` +
+        `will mean users with this role bypass all anti-nuke protections.`
       )
       .setColor(EmbedColors.WARNING);
 
     await interaction.followUp({ embeds: [embed], ephemeral: true });
   }
 
-  // Add to whitelist
-  await services.whitelistService.addRole(guildId, role.id, [category], interaction.user.id);
-
-  // Success embed
-  const embed = new EmbedBuilder()
-    .setTitle(`<:tcet_tick:1437995479567962184> Role Whitelisted - ${formatCategoryName(category)}`)
-    .setDescription(`${role} has been added to the whitelist.`)
-    .setColor(EmbedColors.SUCCESS)
-    .addFields(
-      { name: 'Role', value: `${role} (${role.id})`, inline: false },
-      { name: 'Category', value: formatCategoryName(category), inline: false },
-      { name: 'Effect', value: 'Users with this role will bypass anti-nuke checks for this category.', inline: false }
-    )
-    .setFooter({
-      text: `Added by ${interaction.user.tag} (${interaction.user.id})`,
-    })
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
+  await handleManageInteractive(interaction, services, guildId, role.id, role.name, true);
 }
 
 async function handleAddUser(
@@ -322,7 +192,6 @@ async function handleAddUser(
   await interaction.deferReply();
 
   const user = interaction.options.getUser('user', true);
-  const category = interaction.options.getString('category', true) as WhitelistCategory;
   const guild = interaction.guild!;
 
   // Safety checks
@@ -342,25 +211,7 @@ async function handleAddUser(
     return;
   }
 
-  // Add to whitelist
-  await services.whitelistService.addUser(guildId, user.id, [category], interaction.user.id);
-
-  // Success embed
-  const embed = new EmbedBuilder()
-    .setTitle(`<:tcet_tick:1437995479567962184> User Whitelisted - ${formatCategoryName(category)}`)
-    .setDescription(`${user} has been added to the whitelist.`)
-    .setColor(EmbedColors.SUCCESS)
-    .addFields(
-      { name: 'User', value: `${user.tag} (${user.id})`, inline: false },
-      { name: 'Category', value: formatCategoryName(category), inline: false },
-      { name: 'Effect', value: 'This user will bypass anti-nuke checks for this category.', inline: false }
-    )
-    .setFooter({
-      text: `Added by ${interaction.user.tag} (${interaction.user.id})`,
-    })
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
+  await handleManageInteractive(interaction, services, guildId, user.id, user.tag, false);
 }
 
 async function handleRemoveRole(
@@ -371,25 +222,7 @@ async function handleRemoveRole(
   await interaction.deferReply();
 
   const role = interaction.options.getRole('role', true);
-  const category = interaction.options.getString('category');
-
-  if (category) {
-    await services.whitelistService.removeRole(guildId, role.id, [category as WhitelistCategory]);
-  } else {
-    await services.whitelistService.removeRole(guildId, role.id, 'ALL');
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`<:tcet_tick:1437995479567962184> Role Removed from Whitelist${category ? ' - ' + formatCategoryName(category as WhitelistCategory) : ''}`)
-    .setDescription(`${role} has been removed from the whitelist.`)
-    .setColor(EmbedColors.SUCCESS)
-    .addFields(
-      { name: 'Role', value: `${role} (${role.id})`, inline: false },
-      { name: 'Category', value: category ? formatCategoryName(category as WhitelistCategory) : 'All categories', inline: false }
-    )
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
+  await handleManageInteractive(interaction, services, guildId, role.id, role.name, true);
 }
 
 async function handleRemoveUser(
@@ -400,78 +233,19 @@ async function handleRemoveUser(
   await interaction.deferReply();
 
   const user = interaction.options.getUser('user', true);
-  const category = interaction.options.getString('category');
-
-  if (category) {
-    await services.whitelistService.removeUser(guildId, user.id, [category as WhitelistCategory]);
-  } else {
-    await services.whitelistService.removeUser(guildId, user.id, 'ALL');
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`<:tcet_tick:1437995479567962184> User Removed from Whitelist${category ? ' - ' + formatCategoryName(category as WhitelistCategory) : ''}`)
-    .setDescription(`${user} has been removed from the whitelist.`)
-    .setColor(EmbedColors.SUCCESS)
-    .addFields(
-      { name: 'User', value: `${user.tag} (${user.id})`, inline: false },
-      { name: 'Category', value: category ? formatCategoryName(category as WhitelistCategory) : 'All categories', inline: false }
-    )
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
+  await handleManageInteractive(interaction, services, guildId, user.id, user.tag, false);
 }
 
-async function handleView(
-  interaction: ChatInputCommandInteraction,
-  services: { whitelistService: WhitelistService },
-  guildId: string
-): Promise<void> {
-  await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral
 
-  const role = interaction.options.getRole('role');
-  const user = interaction.options.getUser('user');
-
-  if (!role && !user) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Please specify either a role or a user to view.`);
-    await interaction.editReply({ embeds: [errorEmbed] });
-    return;
-  }
-
-  const targetId = role?.id ?? user!.id;
-  const entries = await services.whitelistService.getEntriesForTarget(guildId, targetId);
-
-  if (entries.length === 0) {
-    const infoEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.INFO)
-      .setDescription(`ℹ️ ${role ?? user} is not whitelisted.`);
-    await interaction.editReply({ embeds: [infoEmbed] });
-    return;
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`📋 Whitelist: ${role?.name ?? user!.tag}`)
-    .setColor(EmbedColors.INFO)
-    .setDescription(`ID: ${targetId}`)
-    .addFields({
-      name: 'Categories',
-      value: entries.map(e =>
-        `• ${formatCategoryName(e.category)} (added <t:${Math.floor(e.createdAt.getTime() / 1000)}:R>)`
-      ).join('\n'),
-      inline: false,
-    })
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
-}
 
 async function handleList(
   interaction: ChatInputCommandInteraction,
   services: { whitelistService: WhitelistService },
   guildId: string
 ): Promise<void> {
-  await interaction.deferReply({ flags: 64 }); // MessageFlags.Ephemeral
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ flags: 64 }); // MessageFlags.Ephemeral
+  }
 
   const filterOption = interaction.options.getString('filter');
   const filter = (filterOption === 'role' || filterOption === 'user') ? filterOption : undefined;
@@ -495,44 +269,31 @@ async function handleList(
   }
 
   // Fetch actual names for roles and users
-  const guild = interaction.guild!;
   const lines: string[] = [];
+  let index = 1;
+
   for (const [targetId, targetEntries] of grouped) {
     const isRole = targetEntries[0].isRole;
     const categoriesList = targetEntries.map(e => formatCategoryName(e.category as WhitelistCategory));
 
-    let displayName = targetId;
-    try {
-      if (isRole) {
-        const role = await guild.roles.fetch(targetId).catch(() => null);
-        displayName = role ? role.name : `Unknown Role (${targetId})`;
-      } else {
-        const user = await guild.members.fetch(targetId).catch(() => null);
-        displayName = user ? user.user.tag : `Unknown User (${targetId})`;
-      }
-    } catch (error) {
-      // Keep targetId as displayName
-    }
+    // Check for ALL category
+    const hasAll = categoriesList.includes('ALL') || categoriesList.includes('ALL (bypass everything)');
+    const displayCategories = hasAll ? 'All Categories' : categoriesList.join(', ');
 
-    // Create checkboxes for each category
-    const categoryChecks = Object.values(WhitelistCategory).map(cat => {
-      const isChecked = categoriesList.includes(formatCategoryName(cat));
-      return `${isChecked ? '✅' : '❌'} ${formatCategoryName(cat)}`;
-    }).join('\n    ');
-
-    const icon = isRole ? '🔷' : '👤';
-    lines.push(`${icon} **${displayName}**\n    ${categoryChecks}`);
+    const mention = isRole ? `<@&${targetId}>` : `<@${targetId}>`;
+    lines.push(`${index}. ${mention}\n> ${displayCategories}`);
+    index++;
   }
 
   // Split into pages if too long
-  const pageSize = 5; // Reduced because of expanded format
+  const pageSize = 10;
   const pages: string[][] = [];
   for (let i = 0; i < lines.length; i += pageSize) {
     pages.push(lines.slice(i, i + pageSize));
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('📋 Whitelist Entries (✅ = Whitelisted, ❌ = Not Whitelisted)')
+    .setTitle('📋 Whitelist Entries')
     .setDescription(pages[0].join('\n\n'))
     .setColor(EmbedColors.INFO)
     .setFooter({
@@ -542,47 +303,27 @@ async function handleList(
 
   // Add management buttons
   const removeButton = new ButtonBuilder()
-    .setCustomId(`whitelist_remove_${interaction.user.id}`)
-    .setLabel('Remove Entries')
+    .setCustomId(`whitelist_list_remove_${interaction.user.id}`)
+    .setLabel('Remove Entry')
     .setStyle(ButtonStyle.Danger)
     .setEmoji('🗑️');
 
-  const addButton = new ButtonBuilder()
-    .setCustomId(`whitelist_add_${interaction.user.id}`)
-    .setLabel('Add New Entry')
-    .setStyle(ButtonStyle.Success)
-    .setEmoji('➕');
-
-  const components: ActionRowBuilder<ButtonBuilder>[] = [];
-  if (entries.length > 0) {
-    components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(removeButton, addButton));
-  } else {
-    components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(addButton));
-  }
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(removeButton);
 
   const response = await interaction.editReply({
     embeds: [embed],
-    components
+    components: [row]
   });
 
-  // Create collector for buttons
+  // Create collector
   const collector = response.createMessageComponentCollector({
     componentType: ComponentType.Button,
-    filter: (i) => i.user.id === interaction.user.id &&
-      (i.customId === `whitelist_remove_${interaction.user.id}` || i.customId === `whitelist_add_${interaction.user.id}`),
-    time: 300000,
+    filter: i => i.user.id === interaction.user.id && i.customId === `whitelist_list_remove_${interaction.user.id}`,
+    time: 60000
   });
 
-  collector.on('collect', async (i: MessageComponentInteraction) => {
-    try {
-      if (i.customId === `whitelist_add_${interaction.user.id}`) {
-        await handleAddInterface(i, services, guildId, interaction);
-      } else if (i.customId === `whitelist_remove_${interaction.user.id}`) {
-        await handleRemoveInterface(i, services, guildId, interaction, grouped);
-      }
-    } catch (error) {
-      console.error('Error in whitelist handler:', error);
-    }
+  collector.on('collect', async i => {
+    await handleRemoveSelection(i, services, guildId, interaction, grouped);
   });
 
   collector.on('end', () => {
@@ -590,241 +331,252 @@ async function handleList(
   });
 }
 
-// New helper function for add interface
-async function handleAddInterface(
-  i: MessageComponentInteraction,
-  services: { whitelistService: WhitelistService },
-  guildId: string,
-  originalInteraction: ChatInputCommandInteraction
-): Promise<void> {
-  if (!i.deferred && !i.replied) {
-    await i.deferUpdate();
-  }
-
-  const typeSelectMenu = new StringSelectMenuBuilder()
-    .setCustomId(`whitelist_add_type_${originalInteraction.user.id}`)
-    .setPlaceholder('Select what to add')
-    .addOptions(
-      {
-        label: 'Add Role',
-        description: 'Whitelist a role',
-        value: 'role',
-        emoji: '🔷'
-      },
-      {
-        label: 'Add User',
-        description: 'Whitelist a user',
-        value: 'user',
-        emoji: '👤'
-      }
-    );
-
-  const cancelButton = new ButtonBuilder()
-    .setCustomId(`whitelist_add_cancel_${originalInteraction.user.id}`)
-    .setLabel('Cancel')
-    .setStyle(ButtonStyle.Secondary);
-
-  await i.editReply({
-    embeds: [new EmbedBuilder()
-      .setColor(EmbedColors.INFO)
-      .setTitle('➕ Add Whitelist Entry')
-      .setDescription('Choose what type of entry you want to add to the whitelist.')
-    ],
-    components: [
-      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(typeSelectMenu),
-      new ActionRowBuilder<ButtonBuilder>().addComponents(cancelButton)
-    ]
-  });
-
-  // Handle type selection
-  const typeCollector = i.message!.createMessageComponentCollector({
-    filter: (si) => si.user.id === originalInteraction.user.id &&
-      (si.customId === `whitelist_add_type_${originalInteraction.user.id}` ||
-        si.customId === `whitelist_add_cancel_${originalInteraction.user.id}`),
-    time: 120000,
-    max: 1,
-  });
-
-  typeCollector.on('collect', async (si: any) => {
-    if (si.customId === `whitelist_add_cancel_${originalInteraction.user.id}`) {
-      await si.deferUpdate();
-      await handleList(originalInteraction, services, guildId);
-      return;
-    }
-
-    await si.deferUpdate();
-    const selectedType = si.values[0];
-
-    // Show instruction for next step
-    const instructionEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.INFO)
-      .setTitle('➕ Add Whitelist Entry')
-      .setDescription(
-        `You selected to add a **${selectedType}**. ` +
-        `Please use the following command to add a ${selectedType} to the whitelist:\n\n` +
-        `\`/whitelist add_${selectedType} ${selectedType}:@${selectedType === 'role' ? 'role' : 'user'} category:[select category]\`\n\n` +
-        `Available categories:\n` +
-        Object.values(WhitelistCategory).map(cat => `• ${formatCategoryName(cat)}`).join('\n')
-      )
-      .setFooter({ text: 'This interface will close in 30 seconds' });
-
-    const backButton = new ButtonBuilder()
-      .setCustomId(`whitelist_add_back_${originalInteraction.user.id}`)
-      .setLabel('Back to List')
-      .setStyle(ButtonStyle.Secondary);
-
-    await si.editReply({
-      embeds: [instructionEmbed],
-      components: [new ActionRowBuilder<ButtonBuilder>().addComponents(backButton)]
-    });
-
-    // Auto-return to list after 30 seconds
-    setTimeout(async () => {
-      await handleList(originalInteraction, services, guildId);
-    }, 30000);
-
-    // Handle back button
-    const backCollector = si.message!.createMessageComponentCollector({
-      filter: (bi: MessageComponentInteraction) => bi.user.id === originalInteraction.user.id &&
-        bi.customId === `whitelist_add_back_${originalInteraction.user.id}`,
-      time: 30000,
-      max: 1,
-    });
-
-    backCollector.on('collect', async (bi: MessageComponentInteraction) => {
-      await bi.deferUpdate();
-      await handleList(originalInteraction, services, guildId);
-    });
-  });
-}
-
-// New helper function for remove interface
-async function handleRemoveInterface(
-  i: MessageComponentInteraction,
+async function handleRemoveSelection(
+  interaction: MessageComponentInteraction,
   services: { whitelistService: WhitelistService },
   guildId: string,
   originalInteraction: ChatInputCommandInteraction,
   grouped: Map<string, any[]>
 ): Promise<void> {
-  if (!i.deferred && !i.replied) {
-    await i.deferUpdate();
-  }
+  await interaction.deferUpdate();
 
-  // Show selection menu with all whitelisted entries
   const guild = originalInteraction.guild!;
-  const options: Array<{ label: string; description: string; value: string }> = [];
+  const options: { label: string; description: string; value: string }[] = [];
 
-  for (const [targetId, targetEntries] of grouped.entries()) {
+  for (const [targetId, targetEntries] of grouped) {
     const isRole = targetEntries[0].isRole;
-    const categories = targetEntries.map(e => formatCategoryName(e.category as WhitelistCategory)).join(', ');
+    let name = targetId;
 
-    let displayName = targetId;
     try {
       if (isRole) {
-        const role = await guild.roles.fetch(targetId).catch(() => null);
-        displayName = role ? role.name : `Unknown Role (${targetId})`;
+        const role = await guild.roles.fetch(targetId);
+        name = role ? role.name : `Unknown Role (${targetId})`;
       } else {
-        const user = await guild.members.fetch(targetId).catch(() => null);
-        displayName = user ? user.user.tag : `Unknown User (${targetId})`;
+        const member = await guild.members.fetch(targetId).catch(() => null);
+        name = member ? member.user.tag : `Unknown User (${targetId})`;
       }
-    } catch (error) {
-      displayName = targetId;
+    } catch {
+      name = isRole ? `Role (${targetId})` : `User (${targetId})`;
     }
 
-    const label = `${isRole ? 'Role' : 'User'}: ${displayName}`;
     options.push({
-      label: label.slice(0, 100),
-      description: categories.slice(0, 100),
-      value: `${targetId}:${isRole ? 'role' : 'user'}`,
+      label: name.substring(0, 100),
+      description: isRole ? 'Role' : 'User',
+      value: `${targetId}:${isRole ? 'true' : 'false'}`
     });
+  }
 
-    if (options.length >= 25) break; // Discord limit
+  // Truncate to 25 options (Discord limit)
+  if (options.length > 25) {
+    options.length = 25;
   }
 
   const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId(`whitelist_remove_select_${originalInteraction.user.id}`)
-    .setPlaceholder('Select entries to remove')
-    .setMinValues(1)
-    .setMaxValues(Math.min(options.length, 25))
+    .setCustomId(`whitelist_list_select_${originalInteraction.id}`)
+    .setPlaceholder('Select a target to manage')
     .addOptions(options);
 
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+  const embed = new EmbedBuilder()
+    .setTitle('Select Target')
+    .setDescription('Choose a user or role to manage their whitelist entries.')
+    .setColor(EmbedColors.INFO);
+
+  await interaction.editReply({
+    embeds: [embed],
+    components: [row]
+  });
+
+  const collector = interaction.message.createMessageComponentCollector({
+    componentType: ComponentType.StringSelect,
+    filter: i => i.user.id === originalInteraction.user.id && i.customId === `whitelist_list_select_${originalInteraction.id}`,
+    time: 60000
+  });
+
+  collector.on('collect', async i => {
+    const [targetId, isRoleStr] = i.values[0].split(':');
+    const isRole = isRoleStr === 'true';
+
+    // Get target name for display
+    let targetName = targetId;
+    try {
+      if (isRole) {
+        const role = await guild.roles.fetch(targetId);
+        targetName = role ? role.name : targetId;
+      } else {
+        const member = await guild.members.fetch(targetId).catch(() => null);
+        targetName = member ? member.user.tag : targetId;
+      }
+    } catch { }
+
+    // We need to pass a ChatInputCommandInteraction to handleManageInteractive, 
+    // but we have a StringSelectMenuInteraction. 
+    // However, handleManageInteractive uses it for editReply/followUp/user.id.
+    // We can cast it or adapt it. 
+    // Since handleManageInteractive expects ChatInputCommandInteraction mainly for initial reply editing,
+    // and we are already in a component flow, we might need to adjust handleManageInteractive or call it carefully.
+
+    // Actually, handleManageInteractive calls editReply on the interaction passed to it.
+    // If we pass 'i' (the select menu interaction), it has editReply.
+    // But typescript might complain. Let's cast it for now as they share the needed methods for this flow.
+    // Or better, update handleManageInteractive signature to accept RepliableInteraction.
+
+    await i.deferUpdate();
+    await handleManageInteractive(originalInteraction, services, guildId, targetId, targetName, isRole);
+  });
+}
+
+async function handleManageInteractive(
+  interaction: ChatInputCommandInteraction,
+  services: { whitelistService: WhitelistService },
+  guildId: string,
+  targetId: string,
+  targetName: string,
+  isRole: boolean
+): Promise<void> {
+  // Fetch current entries
+  const entries = await services.whitelistService.getEntriesForTarget(guildId, targetId);
+  const currentCategories = new Set(entries.map(e => e.category as WhitelistCategory));
+  const allCategories = Object.values(WhitelistCategory);
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`whitelist_manage_select_${interaction.id}`)
+    .setPlaceholder('Select categories to whitelist')
+    .setMinValues(0)
+    .setMaxValues(allCategories.length)
+    .addOptions(
+      allCategories.map(cat => ({
+        label: formatCategoryName(cat),
+        value: cat,
+        description: cat === WhitelistCategory.ALL ? 'Bypass ALL protections' : `Allow ${formatCategoryName(cat)}`,
+        default: currentCategories.has(cat)
+      }))
+    );
+
+  const saveButton = new ButtonBuilder()
+    .setCustomId(`whitelist_save_${interaction.id}`)
+    .setLabel('Save Whitelist')
+    .setStyle(ButtonStyle.Success);
+
   const cancelButton = new ButtonBuilder()
-    .setCustomId(`whitelist_remove_cancel_${originalInteraction.user.id}`)
+    .setCustomId(`whitelist_cancel_${interaction.id}`)
     .setLabel('Cancel')
     .setStyle(ButtonStyle.Secondary);
 
-  await i.editReply({
-    embeds: [new EmbedBuilder()
-      .setColor(EmbedColors.INFO)
-      .setTitle('🗑️ Remove Whitelist Entries')
-      .setDescription('Select the entries you want to remove from the whitelist. ✅ marks will be removed.')
-    ],
-    components: [
-      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu),
-      new ActionRowBuilder<ButtonBuilder>().addComponents(cancelButton)
-    ]
+  const row1 = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+  const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(saveButton, cancelButton);
+
+  const embed = new EmbedBuilder()
+    .setTitle(`Manage Whitelist - ${targetName}`)
+    .setDescription(
+      `Select the categories you want to whitelist for **${targetName}**.\n` +
+      `• Checked items are currently whitelisted.\n` +
+      `• Uncheck items to remove them.\n` +
+      `• Check items to add them.`
+    )
+    .setColor(EmbedColors.INFO);
+
+  const response = await interaction.editReply({
+    embeds: [embed],
+    components: [row1, row2]
   });
 
-  // Wait for selection
-  const selectCollector = i.message!.createMessageComponentCollector({
-    filter: (si) => si.user.id === originalInteraction.user.id &&
-      (si.customId === `whitelist_remove_select_${originalInteraction.user.id}` ||
-        si.customId === `whitelist_remove_cancel_${originalInteraction.user.id}`),
-    time: 120000,
-    max: 1,
+  // Create collector
+  const collector = response.createMessageComponentCollector({
+    filter: i => i.user.id === interaction.user.id && i.customId.includes(interaction.id),
+    time: 60000
   });
 
-  selectCollector.on('collect', async (si: any) => {
-    if (si.customId === `whitelist_remove_cancel_${originalInteraction.user.id}`) {
-      await si.deferUpdate();
-      await handleList(originalInteraction, services, guildId);
-      return;
-    }
+  let selectedCategories = new Set(currentCategories);
 
-    await si.deferUpdate();
-
-    // Remove selected entries
-    let removedCount = 0;
-    for (const value of si.values) {
-      const [targetId, targetType] = value.split(':');
-      try {
-        if (targetType === 'role') {
-          await services.whitelistService.removeRole(guildId, targetId, 'ALL');
-        } else {
-          await services.whitelistService.removeUser(guildId, targetId, 'ALL');
-        }
-        removedCount++;
-      } catch (error) {
-        console.error(`Failed to remove ${targetType} ${targetId}:`, error);
+  collector.on('collect', async i => {
+    if (i.customId === `whitelist_manage_select_${interaction.id}`) {
+      if (i.isStringSelectMenu()) {
+        selectedCategories = new Set(i.values as WhitelistCategory[]);
+        await i.deferUpdate();
       }
+    } else if (i.customId === `whitelist_cancel_${interaction.id}`) {
+      await i.deferUpdate();
+      await interaction.deleteReply();
+      collector.stop();
+    } else if (i.customId === `whitelist_save_${interaction.id}`) {
+      await i.deferUpdate();
+
+      // Calculate changes
+      const toAdd = [...selectedCategories].filter(c => !currentCategories.has(c));
+      const toRemove = [...currentCategories].filter(c => !selectedCategories.has(c));
+
+      if (toAdd.length === 0 && toRemove.length === 0) {
+        await i.followUp({ content: '⚠️ No changes made.', ephemeral: true });
+        return;
+      }
+
+      // Apply changes
+      if (toAdd.length > 0) {
+        if (isRole) {
+          await services.whitelistService.addRole(guildId, targetId, toAdd, interaction.user.id);
+        } else {
+          await services.whitelistService.addUser(guildId, targetId, toAdd, interaction.user.id);
+        }
+      }
+
+      if (toRemove.length > 0) {
+        if (isRole) {
+          await services.whitelistService.removeRole(guildId, targetId, toRemove);
+        } else {
+          await services.whitelistService.removeUser(guildId, targetId, toRemove);
+        }
+      }
+
+      // Success embed
+      const successEmbed = new EmbedBuilder()
+        .setColor(EmbedColors.SUCCESS)
+        .setTitle('<:tcet_tick:1437995479567962184> Whitelist Updated')
+        .setDescription(`Successfully updated whitelist for **${targetName}**.`)
+        .setFooter({
+          text: `Updated by ${interaction.user.tag}`,
+          iconURL: interaction.user.displayAvatarURL()
+        })
+        .setTimestamp();
+
+      if (toAdd.length > 0) {
+        successEmbed.addFields({
+          name: '➕ Added',
+          value: toAdd.map(c => `> ${formatCategoryName(c)}`).join('\n'),
+          inline: true
+        });
+      }
+
+      if (toRemove.length > 0) {
+        successEmbed.addFields({
+          name: '➖ Removed',
+          value: toRemove.map(c => `> ${formatCategoryName(c)}`).join('\n'),
+          inline: true
+        });
+      }
+
+      if (selectedCategories.has(WhitelistCategory.ALL)) {
+        successEmbed.addFields({
+          name: '⚠️ Disclaimer',
+          value: 'This target will bypass **ALL** Anti-Nuke protections. Ensure you trust them completely.',
+          inline: false
+        });
+      }
+
+      await interaction.editReply({ embeds: [successEmbed], components: [] });
+      collector.stop();
     }
-
-    const successEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.SUCCESS)
-      .setTitle('<:tcet_tick:1437995479567962184> Entries Removed')
-      .setDescription(`Successfully removed ${removedCount} whitelist entry(ies). All ✅ marks have been removed.`)
-      .setTimestamp();
-
-    await si.editReply({ embeds: [successEmbed], components: [] });
-
-    // Refresh the list after 2 seconds
-    setTimeout(async () => {
-      await handleList(originalInteraction, services, guildId);
-    }, 2000);
   });
 
-  selectCollector.on('end', (collected) => {
-    if (collected.size === 0) {
-      i.editReply({
-        embeds: [new EmbedBuilder()
-          .setColor(EmbedColors.ERROR)
-          .setDescription(`${CustomEmojis.CROSS} Selection timed out.`)
-        ],
-        components: []
-      }).catch(() => { });
+  collector.on('end', (collected, reason) => {
+    if (reason === 'time') {
+      interaction.editReply({ components: [] }).catch(() => { });
     }
   });
 }
+
+
 
 async function handleReset(
   interaction: ChatInputCommandInteraction,

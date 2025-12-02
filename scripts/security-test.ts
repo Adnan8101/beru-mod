@@ -5,10 +5,10 @@
  * Usage: npx ts-node scripts/security-test.ts
  */
 
-import { Client, GatewayIntentBits, TextChannel, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { Client, GatewayIntentBits, PermissionFlagsBits, ChannelType, Guild } from 'discord.js';
 import * as readline from 'readline';
-
 import * as dotenv from 'dotenv';
+
 dotenv.config();
 
 const rl = readline.createInterface({
@@ -72,21 +72,29 @@ async function main() {
 
         // Main Menu
         while (true) {
-            console.log('\nSelect Test Mode:');
-            console.log('1. Antinuke Test (Channels, Roles, Bans)');
-            console.log('2. Automod Test (Spam, Links, Mentions)');
-            console.log('3. Exit');
+            console.log('\nSelect Event to Test:');
+            console.log('1. Create Channel');
+            console.log('2. Delete Channel');
+            console.log('3. Create Role');
+            console.log('4. Delete Role');
+            console.log('5. Give Dangerous Perms (Manage Channels)');
+            console.log('6. Give Admin Role');
+            console.log('7. Kick Member');
+            console.log('8. Ban Member');
+            console.log('9. Exit');
 
-            const choice = await question('Enter choice (1-3): ');
+            const choice = await question('Enter choice (1-9): ');
 
             switch (choice) {
-                case '1':
-                    await runAntinukeTest(guild);
-                    break;
-                case '2':
-                    await runAutomodTest(guild);
-                    break;
-                case '3':
+                case '1': await testCreateChannel(guild); break;
+                case '2': await testDeleteChannel(guild); break;
+                case '3': await testCreateRole(guild); break;
+                case '4': await testDeleteRole(guild); break;
+                case '5': await testDangerousPerms(guild); break;
+                case '6': await testGiveAdmin(guild); break;
+                case '7': await testKickMember(guild); break;
+                case '8': await testBanMember(guild); break;
+                case '9':
                     console.log('👋 Exiting...');
                     client.destroy();
                     process.exit(0);
@@ -94,6 +102,8 @@ async function main() {
                 default:
                     console.log('❌ Invalid choice.');
             }
+
+            await question('\nPress Enter to continue...');
         }
 
     } catch (error) {
@@ -102,162 +112,227 @@ async function main() {
     }
 }
 
-async function askCount(query: string): Promise<number> {
-    const answer = await question(query);
-    const count = parseInt(answer);
-    return isNaN(count) || count < 1 ? 1 : count;
-}
+async function testCreateChannel(guild: Guild) {
+    console.log('\n[Testing Create Channel]');
+    const count = parseInt(await question('How many channels to create? (1): ') || '1');
 
-async function runAntinukeTest(guild: any) {
-    console.log('\n💥 Starting Antinuke Test...');
-    console.log('⚠️  WARNING: This will create/delete channels and roles. Ensure the main bot has higher role hierarchy.');
-
-    const confirm = await question('Type "yes" to proceed: ');
-    if (confirm.toLowerCase() !== 'yes') return;
-
-    try {
-        // Ask for counts
-        const channelCount = await askCount('How many channels to create/delete? (Default: 1): ');
-        const roleCount = await askCount('How many roles to create/delete? (Default: 1): ');
-
-        // 1. Channel Create/Delete
-        console.log(`\n[1/3] Testing Channel Protection (${channelCount} times)...`);
-        const createdChannels = [];
-
-        for (let i = 0; i < channelCount; i++) {
-            try {
-                const channel = await guild.channels.create({
-                    name: `antinuke-test-${i + 1}`,
-                    type: ChannelType.GuildText,
-                    reason: `Antinuke Test: Channel Create ${i + 1}`
-                });
-                createdChannels.push(channel);
-                console.log(`✔ Created channel "${channel.name}"`);
-            } catch (e) {
-                console.log(`✖ Failed to create channel ${i + 1}:`, e);
-            }
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        console.log('Waiting 2s before deletion...');
-        await new Promise(r => setTimeout(r, 2000));
-
-        for (const channel of createdChannels) {
-            try {
-                await channel.delete('Antinuke Test: Channel Delete');
-                console.log(`✔ Deleted channel "${channel.name}"`);
-            } catch (e) {
-                console.log(`✖ Failed to delete ${channel.name}`);
-            }
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        // 2. Role Create/Delete
-        console.log(`\n[2/3] Testing Role Protection (${roleCount} times)...`);
-        const createdRoles = [];
-
-        for (let i = 0; i < roleCount; i++) {
-            try {
-                const role = await guild.roles.create({
-                    name: `antinuke-test-role-${i + 1}`,
-                    reason: `Antinuke Test: Role Create ${i + 1}`
-                });
-                createdRoles.push(role);
-                console.log(`✔ Created role "${role.name}"`);
-            } catch (e) {
-                console.log(`✖ Failed to create role ${i + 1}:`, e);
-            }
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        console.log('Waiting 2s before deletion...');
-        await new Promise(r => setTimeout(r, 2000));
-
-        for (const role of createdRoles) {
-            try {
-                await role.delete('Antinuke Test: Role Delete');
-                console.log(`✔ Deleted role "${role.name}"`);
-            } catch (e) {
-                console.log(`✖ Failed to delete ${role.name}`);
-            }
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        // 3. Role Update (Dangerous Perms)
-        console.log('\n[3/3] Testing Dangerous Permissions (1 time)...');
-        const permRole = await guild.roles.create({
-            name: 'antinuke-perm-test',
-            reason: 'Antinuke Test: Perm Setup'
-        });
-
-        await new Promise(r => setTimeout(r, 1000));
-
+    for (let i = 0; i < count; i++) {
         try {
-            await permRole.setPermissions([PermissionFlagsBits.ManageChannels], 'Antinuke Test: Giving ManageChannels');
-            console.log('✔ Added ManageChannels permission to role');
-        } catch (e) {
-            console.log('✖ Failed to add ManageChannels perm (Test bot might lack permissions)');
+            const channel = await guild.channels.create({
+                name: `test-channel-${Date.now()}-${i}`,
+                type: ChannelType.GuildText,
+                reason: 'Security Test: Create Channel'
+            });
+            console.log(`✔ Created channel: ${channel.name}`);
+        } catch (e: any) {
+            console.log(`✖ Failed to create channel: ${e.message}`);
         }
-
-        await new Promise(r => setTimeout(r, 2000));
-        await permRole.delete().catch(() => { });
-
-        console.log('\n✅ Antinuke Test Complete. Check bot logs for actions.');
-
-    } catch (error) {
-        console.error('❌ Antinuke Test Failed:', error);
     }
 }
 
-async function runAutomodTest(guild: any) {
-    console.log('\n🤖 Starting Automod Test...');
+async function testDeleteChannel(guild: Guild) {
+    console.log('\n[Testing Delete Channel]');
+    const channelId = await question('Enter Channel ID to delete (leave empty to create and delete one): ');
 
-    const channelId = await question('Enter Channel ID to spam in: ');
-    const channel = await guild.channels.fetch(channelId);
+    if (channelId) {
+        try {
+            const channel = await guild.channels.fetch(channelId);
+            if (channel) {
+                await channel.delete('Security Test: Delete Channel');
+                console.log(`✔ Deleted channel: ${channel.name}`);
+            } else {
+                console.log('✖ Channel not found');
+            }
+        } catch (e: any) {
+            console.log(`✖ Failed to delete channel: ${e.message}`);
+        }
+    } else {
+        const count = parseInt(await question('How many channels to create and delete? (1): ') || '1');
 
-    if (!channel || !channel.isTextBased()) {
-        console.error('❌ Invalid channel.');
+        for (let i = 0; i < count; i++) {
+            try {
+                const channel = await guild.channels.create({
+                    name: `test-delete-${Date.now()}-${i}`,
+                    type: ChannelType.GuildText
+                });
+                console.log(`✔ Created temp channel: ${channel.name}`);
+                await new Promise(r => setTimeout(r, 1000));
+                await channel.delete('Security Test: Delete Channel');
+                console.log(`✔ Deleted temp channel: ${channel.name}`);
+            } catch (e: any) {
+                console.log(`✖ Failed to test delete: ${e.message}`);
+            }
+            // Small delay between iterations
+            if (i < count - 1) await new Promise(r => setTimeout(r, 500));
+        }
+    }
+}
+
+async function testCreateRole(guild: Guild) {
+    console.log('\n[Testing Create Role]');
+    const count = parseInt(await question('How many roles to create? (1): ') || '1');
+
+    for (let i = 0; i < count; i++) {
+        try {
+            const role = await guild.roles.create({
+                name: `test-role-${Date.now()}-${i}`,
+                reason: 'Security Test: Create Role'
+            });
+            console.log(`✔ Created role: ${role.name}`);
+        } catch (e: any) {
+            console.log(`✖ Failed to create role: ${e.message}`);
+        }
+    }
+}
+
+async function testDeleteRole(guild: Guild) {
+    console.log('\n[Testing Delete Role]');
+    const roleId = await question('Enter Role ID to delete (leave empty to create and delete one): ');
+
+    if (roleId) {
+        try {
+            const role = await guild.roles.fetch(roleId);
+            if (role) {
+                await role.delete('Security Test: Delete Role');
+                console.log(`✔ Deleted role: ${role.name}`);
+            } else {
+                console.log('✖ Role not found');
+            }
+        } catch (e: any) {
+            console.log(`✖ Failed to delete role: ${e.message}`);
+        }
+    } else {
+        const count = parseInt(await question('How many roles to create and delete? (1): ') || '1');
+
+        for (let i = 0; i < count; i++) {
+            try {
+                const role = await guild.roles.create({
+                    name: `test-delete-${Date.now()}-${i}`
+                });
+                console.log(`✔ Created temp role: ${role.name}`);
+                await new Promise(r => setTimeout(r, 1000));
+                await role.delete('Security Test: Delete Role');
+                console.log(`✔ Deleted temp role: ${role.name}`);
+            } catch (e: any) {
+                console.log(`✖ Failed to test delete: ${e.message}`);
+            }
+            // Small delay between iterations
+            if (i < count - 1) await new Promise(r => setTimeout(r, 500));
+        }
+    }
+}
+
+async function testDangerousPerms(guild: Guild) {
+    console.log('\n[Testing Dangerous Perms]');
+    try {
+        const role = await guild.roles.create({
+            name: `test-dangerous-${Date.now()}`,
+            reason: 'Security Test: Setup Dangerous Role'
+        });
+        console.log(`✔ Created temp role: ${role.name}`);
+
+        await new Promise(r => setTimeout(r, 1000));
+
+        await role.setPermissions([PermissionFlagsBits.ManageChannels], 'Security Test: Give Dangerous Perms');
+        console.log(`✔ Gave ManageChannels permission to ${role.name}`);
+
+        console.log('Waiting 5s to see if bot reacts...');
+        await new Promise(r => setTimeout(r, 5000));
+
+        // Cleanup if not deleted
+        try {
+            await role.delete();
+        } catch { }
+    } catch (e: any) {
+        console.log(`✖ Failed to test dangerous perms: ${e.message}`);
+    }
+}
+
+async function testGiveAdmin(guild: Guild) {
+    console.log('\n[Testing Give Admin Role]');
+    const targetId = await question('Enter Target User ID (leave empty to use a random member): ');
+    let member;
+
+    if (targetId) {
+        member = await guild.members.fetch(targetId).catch(() => null);
+    } else {
+        const members = await guild.members.fetch({ limit: 10 });
+        member = members.find(m => !m.user.bot && m.id !== guild.ownerId);
+    }
+
+    if (!member) {
+        console.log('✖ No suitable member found.');
         return;
     }
 
     try {
-        // 1. Spam Test
-        const spamCount = await askCount('Enter total spam messages (Default: 6): ');
-        const spamDelay = await askCount('Enter delay between messages in ms (Default: 500): ');
+        // Create an admin role first
+        const adminRole = await guild.roles.create({
+            name: `test-admin-${Date.now()}`,
+            permissions: [PermissionFlagsBits.Administrator],
+            reason: 'Security Test: Create Admin Role'
+        });
+        console.log(`✔ Created temp admin role: ${adminRole.name}`);
 
-        console.log(`\n[1/4] Testing Anti-Spam (Sending ${spamCount} messages with ${spamDelay}ms delay)...`);
-        for (let i = 0; i < spamCount; i++) {
-            await channel.send(`Spam test message ${i + 1} - ${Date.now()}`);
-            await new Promise(r => setTimeout(r, spamDelay));
+        await member.roles.add(adminRole, 'Security Test: Give Admin Role');
+        console.log(`✔ Gave admin role to ${member.user.tag}`);
+
+        console.log('Waiting 5s to see if bot reacts...');
+        await new Promise(r => setTimeout(r, 5000));
+
+        // Cleanup
+        try { await adminRole.delete(); } catch { }
+    } catch (e: any) {
+        console.log(`✖ Failed to test give admin: ${e.message}`);
+    }
+}
+
+async function testKickMember(guild: Guild) {
+    console.log('\n[Testing Kick Member]');
+    const targetId = await question('Enter Target User ID to kick: ');
+
+    if (!targetId) {
+        console.log('✖ Target ID required for safety.');
+        return;
+    }
+
+    try {
+        const member = await guild.members.fetch(targetId);
+        if (member) {
+            await member.kick('Security Test: Kick Member');
+            console.log(`✔ Kicked member: ${member.user.tag}`);
+        } else {
+            console.log('✖ Member not found');
         }
-        console.log('✔ Sent spam messages');
+    } catch (e: any) {
+        console.log(`✖ Failed to kick member: ${e.message}`);
+    }
+}
 
-        await new Promise(r => setTimeout(r, 2000));
+async function testBanMember(guild: Guild) {
+    console.log('\n[Testing Ban Member]');
+    const targetId = await question('Enter Target User ID to ban: ');
 
-        // 2. Mass Mention
-        console.log('\n[2/4] Testing Mass Mention...');
-        const mentions = Array(6).fill(`<@${guild.ownerId}>`).join(' ');
-        await channel.send(`Mass mention test: ${mentions}`);
-        console.log('✔ Sent mass mention message');
+    if (!targetId) {
+        console.log('✖ Target ID required for safety.');
+        return;
+    }
 
-        await new Promise(r => setTimeout(r, 2000));
+    try {
+        const member = await guild.members.fetch(targetId);
+        if (member) {
+            await member.ban({ reason: 'Security Test: Ban Member' });
+            console.log(`✔ Banned member: ${member.user.tag}`);
 
-        // 3. Anti-Link
-        console.log('\n[3/4] Testing Anti-Link...');
-        await channel.send('Check out this link: https://google.com');
-        console.log('✔ Sent external link');
-
-        await new Promise(r => setTimeout(r, 2000));
-
-        // 4. Anti-Invite
-        console.log('\n[4/4] Testing Anti-Invite...');
-        await channel.send('Join my server: https://discord.gg/example');
-        console.log('✔ Sent discord invite');
-
-        console.log('\n✅ Automod Test Complete. Check channel for deletions/warns.');
-
-    } catch (error) {
-        console.error('❌ Automod Test Failed:', error);
+            // Unban for cleanup
+            await new Promise(r => setTimeout(r, 2000));
+            await guild.members.unban(targetId, 'Security Test: Cleanup');
+            console.log(`✔ Unbanned member for cleanup`);
+        } else {
+            console.log('✖ Member not found');
+        }
+    } catch (e: any) {
+        console.log(`✖ Failed to ban member: ${e.message}`);
     }
 }
 

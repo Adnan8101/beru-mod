@@ -58,11 +58,15 @@ export const slashCommand: SlashCommand = {
 };
 
 import { parseDuration, formatDurationVerbose } from '../../utils/time';
+import { checkCommandPermission } from '../../utils/permissionHelpers';
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { configService: ConfigService }
 ): Promise<void> {
+  // Permission Check: Role > Bot
+  if (!await checkCommandPermission(interaction, { ownerOnly: false })) return;
+
   await interaction.deferReply();
 
   const action = interaction.options.getString('action', true) as ProtectionAction;

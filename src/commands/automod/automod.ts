@@ -203,6 +203,8 @@ export async function execute(
   }
 }
 
+import { checkCommandPermission } from '../../utils/permissionHelpers';
+
 // ============================================================================
 // SETUP COMMAND - Shows button to enable all with defaults
 // ============================================================================
@@ -211,6 +213,9 @@ async function handleSetup(
   interaction: ChatInputCommandInteraction,
   autoModService: AutoModService
 ) {
+  // Permission Check: Role > Bot
+  if (!await checkCommandPermission(interaction, { ownerOnly: false })) return;
+
   const guildId = interaction.guild!.id;
 
   const embed = createInfoEmbed(
@@ -377,6 +382,9 @@ async function handleEnable(
   interaction: ChatInputCommandInteraction,
   autoModService: AutoModService
 ) {
+  // Permission Check: Owner Only
+  if (!await checkCommandPermission(interaction, { ownerOnly: true })) return;
+
   const guildId = interaction.guild!.id;
   const action = interaction.options.getString('action', true);
   const punishment = interaction.options.getString('punishment') || 'timeout';
@@ -577,6 +585,9 @@ async function handleDisable(
   interaction: ChatInputCommandInteraction,
   autoModService: AutoModService
 ) {
+  // Permission Check: Owner Only
+  if (!await checkCommandPermission(interaction, { ownerOnly: true })) return;
+
   const guildId = interaction.guild!.id;
   const action = interaction.options.getString('action', true);
 
@@ -612,6 +623,9 @@ async function handleAntiSpamLimit(
   interaction: ChatInputCommandInteraction,
   autoModService: AutoModService
 ) {
+  // Permission Check: Role > Bot
+  if (!await checkCommandPermission(interaction, { ownerOnly: false })) return;
+
   const guildId = interaction.guild!.id;
   const maxMessages = interaction.options.getInteger('message', true);
   const thresholdTime = interaction.options.getString('threshold_time', true);
@@ -654,6 +668,9 @@ async function handleMassMentionLimit(
   interaction: ChatInputCommandInteraction,
   autoModService: AutoModService
 ) {
+  // Permission Check: Role > Bot
+  if (!await checkCommandPermission(interaction, { ownerOnly: false })) return;
+
   const guildId = interaction.guild!.id;
   const mentionsAllowed = interaction.options.getInteger('mentions_allowed', true);
 

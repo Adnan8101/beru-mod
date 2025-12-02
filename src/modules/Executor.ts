@@ -209,7 +209,7 @@ export class Executor {
         case ProtectionAction.ADD_BOTS:
           const bot = await guild.members.fetch(event.targetId).catch(() => null);
           if (bot) {
-            await bot.kick('Anti-Nuke: Reverting bot addition');
+            await bot.ban({ reason: 'Anti-Nuke: Reverting bot addition' });
             return true;
           }
           break;

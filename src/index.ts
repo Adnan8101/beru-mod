@@ -448,7 +448,9 @@ function setupEventHandlers() {
         await inviteService.updateInviteCache(member.guild);
 
         // Generate appropriate message based on join type
-        if (inviteData.joinType === 'invite' && inviteData.inviterId && inviteData.inviterTag) {
+        if (member.user.bot) {
+          inviterInfo = `${member} has been added as an **Integration** 🤖.`;
+        } else if (inviteData.joinType === 'invite' && inviteData.inviterId && inviteData.inviterTag) {
           // Increment inviter's invite count
           const totalInvites = await inviteService.incrementInvites(member.guild.id, inviteData.inviterId);
           inviterInfo = `${member} has been invited by **${inviteData.inviterTag}** who now has **${totalInvites}** invite${totalInvites !== 1 ? 's' : ''}.`;
@@ -504,7 +506,23 @@ function setupEventHandlers() {
           const joinInfo = await inviteService.getMemberJoinData(member.guild.id, member.id);
           let leaveMessage = '';
 
-          if (joinInfo) {
+          if (member.user.bot) {
+            // Check for kick/ban in audit logs
+            let action = 'left';
+            try {
+              const auditLogs = await member.guild.fetchAuditLogs({ limit: 5 });
+              const entry = auditLogs.entries.find(e => e.target?.id === member.id && (e.action === 20 || e.action === 22)); // 20: Kick, 22: Ban Add
+              if (entry) {
+                if (entry.action === 20) action = 'was kicked';
+                if (entry.action === 22) action = 'was banned';
+                // Check if it was recent (within last 30 seconds)
+                if (Date.now() - entry.createdTimestamp > 30000) action = 'left';
+              }
+            } catch (e) {
+              console.error('Failed to fetch audit logs for bot leave:', e);
+            }
+            leaveMessage = `${member.user.tag} ${action} the server.`;
+          } else if (joinInfo) {
             if (joinInfo.joinType === 'invite' && joinInfo.inviterId && joinInfo.inviterTag) {
               // Decrement inviter's invite count (person left)
               try {
