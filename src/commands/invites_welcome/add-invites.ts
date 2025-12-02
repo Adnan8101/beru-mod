@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   PermissionFlagsBits
 } from 'discord.js';
@@ -22,6 +22,10 @@ const slashCommand: SlashCommand = {
         .setRequired(true)
         .setMinValue(1))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  category: 'invites_welcome',
+  syntax: '/add-invites <user> <invites>',
+  permission: 'Administrator',
+  example: '/add-invites @user 5',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const targetUser = interaction.options.getUser('user', true);
@@ -53,9 +57,9 @@ const slashCommand: SlashCommand = {
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error adding invites:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while adding invites.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while adding invites.',
+        ephemeral: true
       });
     }
   },

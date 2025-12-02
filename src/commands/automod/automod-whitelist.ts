@@ -16,8 +16,9 @@ import {
   ComponentType,
 } from 'discord.js';
 import { AutoModService } from '../../services/AutoModService';
-import { EmbedColors } from '../../types';
+import { EmbedColors, SlashCommand } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
+import { createErrorEmbed, createSuccessEmbed, createInfoEmbed } from '../../utils/embedHelpers';
 
 // AutoMod action types
 const AUTOMOD_ACTIONS = [
@@ -123,12 +124,37 @@ export const data = new SlashCommandBuilder()
       )
   );
 
+export const slashCommand: SlashCommand = {
+  data: data,
+  execute: execute,
+  category: 'automod',
+  syntax: '/automod-whitelist <add|remove|view>',
+  permission: 'Manage Server',
+  example: '/automod-whitelist add action:anti_spam user:@user'
+};
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { autoModService: AutoModService }
 ): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
   const guildId = interaction.guildId!;
+
+  // Permission Check: Owner OR Role > Bot
+  const member = interaction.member as import('discord.js').GuildMember;
+  const botMember = interaction.guild!.members.me!;
+
+  if (interaction.user.id !== interaction.guild!.ownerId) {
+    if (member.roles.highest.position <= botMember.roles.highest.position) {
+      const errorEmbed = createErrorEmbed(
+        'You must be the **Server Owner** or have a **Role higher than the Bot** to manage whitelists.'
+      )
+        .setTitle('⛔ Permission Denied');
+
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+      return;
+    }
+  }
 
   switch (subcommand) {
     case 'add':
@@ -157,9 +183,7 @@ async function handleAdd(
 
   // Validate that at least one target is provided
   if (!user && !role && !channel) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Please specify at least one: user, role, or channel.`);
+    const errorEmbed = createErrorEmbed('Please specify at least one: user, role, or channel.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -171,21 +195,21 @@ async function handleAdd(
     // Handle global (add to all features)
     if (action === 'global') {
       const features = ['anti_spam', 'mass_mention', 'server_invite', 'anti_link'];
-      
+
       if (user) {
         for (const feature of features) {
           await autoModService.addWhitelist(guildId, feature, user.id, 'user', interaction.user.id);
         }
         addedTargets.push(`${user} (User)`);
       }
-      
+
       if (role) {
         for (const feature of features) {
           await autoModService.addWhitelist(guildId, feature, role.id, 'role', interaction.user.id);
         }
         addedTargets.push(`${role} (Role)`);
       }
-      
+
       if (channel) {
         for (const feature of features) {
           await autoModService.addWhitelist(guildId, feature, channel.id, 'channel', interaction.user.id);
@@ -198,20 +222,19 @@ async function handleAdd(
         await autoModService.addWhitelist(guildId, action, user.id, 'user', interaction.user.id);
         addedTargets.push(`${user} (User)`);
       }
-      
+
       if (role) {
         await autoModService.addWhitelist(guildId, action, role.id, 'role', interaction.user.id);
         addedTargets.push(`${role} (Role)`);
       }
-      
+
       if (channel) {
         await autoModService.addWhitelist(guildId, action, channel.id, 'channel', interaction.user.id);
         addedTargets.push(`${channel} (Channel)`);
       }
     }
 
-    const successEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.SUCCESS)
+    const successEmbed = createSuccessEmbed('Added to AutoMod Whitelist')
       .setTitle(`${CustomEmojis.TICK} Added to AutoMod Whitelist`)
       .setDescription(
         `Successfully whitelisted for **${featureName}**:\n\n` +
@@ -219,7 +242,7 @@ async function handleAdd(
       )
       .addFields({
         name: 'Effect',
-        value: action === 'global' 
+        value: action === 'global'
           ? 'These entities will bypass ALL automod features.'
           : `These entities will bypass the ${featureName} feature.`,
         inline: false
@@ -231,9 +254,7 @@ async function handleAdd(
 
     await interaction.editReply({ embeds: [successEmbed] });
   } catch (error: any) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to add to whitelist: ${error.message || 'Unknown error'}`);
+    const errorEmbed = createErrorEmbed(`Failed to add to whitelist: ${error.message || 'Unknown error'}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
@@ -252,9 +273,7 @@ async function handleRemove(
 
   // Validate that at least one target is provided
   if (!user && !role && !channel) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Please specify at least one: user, role, or channel.`);
+    const errorEmbed = createErrorEmbed('Please specify at least one: user, role, or channel.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -266,7 +285,7 @@ async function handleRemove(
     // Handle global (remove from all features)
     if (action === 'global') {
       const features = ['anti_spam', 'mass_mention', 'server_invite', 'anti_link'];
-      
+
       if (user) {
         for (const feature of features) {
           try {
@@ -277,7 +296,7 @@ async function handleRemove(
         }
         removedTargets.push(`${user} (User)`);
       }
-      
+
       if (role) {
         for (const feature of features) {
           try {
@@ -288,7 +307,7 @@ async function handleRemove(
         }
         removedTargets.push(`${role} (Role)`);
       }
-      
+
       if (channel) {
         for (const feature of features) {
           try {
@@ -305,20 +324,19 @@ async function handleRemove(
         await autoModService.removeWhitelist(guildId, action, user.id);
         removedTargets.push(`${user} (User)`);
       }
-      
+
       if (role) {
         await autoModService.removeWhitelist(guildId, action, role.id);
         removedTargets.push(`${role} (Role)`);
       }
-      
+
       if (channel) {
         await autoModService.removeWhitelist(guildId, action, channel.id);
         removedTargets.push(`${channel} (Channel)`);
       }
     }
 
-    const successEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.SUCCESS)
+    const successEmbed = createSuccessEmbed('Removed from AutoMod Whitelist')
       .setTitle(`${CustomEmojis.TICK} Removed from AutoMod Whitelist`)
       .setDescription(
         `Successfully removed from **${featureName}** whitelist:\n\n` +
@@ -331,9 +349,7 @@ async function handleRemove(
 
     await interaction.editReply({ embeds: [successEmbed] });
   } catch (error: any) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to remove from whitelist: ${error.message || 'Unknown error'}`);
+    const errorEmbed = createErrorEmbed(`Failed to remove from whitelist: ${error.message || 'Unknown error'}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
@@ -357,12 +373,12 @@ async function handleView(
       const targetType = user ? 'user' : role ? 'role' : 'channel';
       const targetDisplay = user || role || channel;
 
-      const features = action && action !== 'global' 
+      const features = action && action !== 'global'
         ? [action]
         : ['anti_spam', 'mass_mention', 'server_invite', 'anti_link'];
 
       const whitelistedIn: string[] = [];
-      
+
       for (const feature of features) {
         const whitelists = await autoModService.getWhitelists(guildId, feature);
         if (whitelists.some((w: any) => w.targetId === targetId)) {
@@ -370,13 +386,11 @@ async function handleView(
         }
       }
 
-      const embed = new EmbedBuilder()
+      const embed = createInfoEmbed(`📋 AutoMod Whitelist Status`, `Status for ${targetDisplay}`)
         .setColor(whitelistedIn.length > 0 ? EmbedColors.SUCCESS : EmbedColors.INFO)
-        .setTitle(`📋 AutoMod Whitelist Status`)
-        .setDescription(`Status for ${targetDisplay}`)
         .addFields({
           name: 'Whitelisted Features',
-          value: whitelistedIn.length > 0 
+          value: whitelistedIn.length > 0
             ? whitelistedIn.map(f => `✅ ${f}`).join('\n')
             : 'Not whitelisted in any feature',
           inline: false
@@ -388,7 +402,7 @@ async function handleView(
     }
 
     // Show all whitelist entries for the specified action(s)
-    const features = action && action !== 'global' 
+    const features = action && action !== 'global'
       ? [action]
       : ['anti_spam', 'mass_mention', 'server_invite', 'anti_link'];
 
@@ -396,7 +410,7 @@ async function handleView(
 
     for (const feature of features) {
       const whitelists = await autoModService.getWhitelists(guildId, feature);
-      
+
       for (const whitelist of whitelists) {
         const key = `${whitelist.targetType}_${whitelist.targetId}`;
         if (!allWhitelists.has(key)) {
@@ -411,13 +425,12 @@ async function handleView(
     }
 
     if (allWhitelists.size === 0) {
-      const infoEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.INFO)
-        .setDescription(
-          action && action !== 'global'
-            ? `ℹ️ No whitelist entries found for **${getFeatureName(action)}**.`
-            : `ℹ️ No whitelist entries found for any automod feature.`
-        );
+      const infoEmbed = createInfoEmbed(
+        'AutoMod Whitelist',
+        action && action !== 'global'
+          ? `ℹ️ No whitelist entries found for **${getFeatureName(action)}**.`
+          : `ℹ️ No whitelist entries found for any automod feature.`
+      );
       await interaction.editReply({ embeds: [infoEmbed] });
       return;
     }
@@ -431,8 +444,8 @@ async function handleView(
       const { targetType, targetId } = entries[0];
       const featuresList = entries.map(e => getFeatureName(e.feature));
       const isGlobal = featuresList.length === 4; // All 4 features
-      
-      const statusText = isGlobal 
+
+      const statusText = isGlobal
         ? '🌐 Global'
         : featuresList.map(f => `✅ ${f}`).join(', ');
 
@@ -445,14 +458,12 @@ async function handleView(
       }
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(EmbedColors.INFO)
-      .setTitle(`📋 AutoMod Whitelist${action && action !== 'global' ? ' - ' + getFeatureName(action) : ''}`)
-      .setDescription(
-        action && action !== 'global'
-          ? `Showing whitelist for **${getFeatureName(action)}**`
-          : 'Showing whitelist for all automod features\n🌐 = Global (all features)'
-      );
+    const embed = createInfoEmbed(
+      `📋 AutoMod Whitelist${action && action !== 'global' ? ' - ' + getFeatureName(action) : ''}`,
+      action && action !== 'global'
+        ? `Showing whitelist for **${getFeatureName(action)}**`
+        : 'Showing whitelist for all automod features\n🌐 = Global (all features)'
+    );
 
     if (users.length > 0) {
       embed.addFields({
@@ -483,9 +494,7 @@ async function handleView(
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error: any) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to view whitelist: ${error.message || 'Unknown error'}`);
+    const errorEmbed = createErrorEmbed(`Failed to view whitelist: ${error.message || 'Unknown error'}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

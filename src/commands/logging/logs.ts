@@ -12,6 +12,8 @@ import {
 } from 'discord.js';
 import { LoggingService } from '../../services/LoggingService';
 import { EmbedColors } from '../../types';
+import { CustomEmojis } from '../../utils/emoji';
+import { createErrorEmbed, createSuccessEmbed, createInfoEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('logs')
@@ -47,6 +49,11 @@ export const data = new SlashCommandBuilder()
       .setDescription('View current logging configuration')
   );
 
+export const category = 'logging';
+export const syntax = '!logs <mod|security|view> [channel]';
+export const example = '!logs mod #mod-logs';
+export const permission = 'Manage Guild';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { loggingService: LoggingService }
@@ -75,11 +82,10 @@ async function handleModChannel(
   await interaction.deferReply();
 
   const channel = interaction.options.getChannel('channel', true);
-  
+
   if (channel.type !== ChannelType.GuildText) {
-    await interaction.editReply({
-      content: '❌ Please select a text channel.',
-    });
+    const errorEmbed = createErrorEmbed('Please select a text channel.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -90,16 +96,14 @@ async function handleModChannel(
   const permissions = textChannel.permissionsFor(botMember);
 
   if (!permissions?.has(PermissionFlagsBits.SendMessages)) {
-    await interaction.editReply({
-      content: `❌ I don't have permission to send messages in ${channel}.`,
-    });
+    const errorEmbed = createErrorEmbed(`I don't have permission to send messages in ${channel}.`);
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   if (!permissions?.has(PermissionFlagsBits.EmbedLinks)) {
-    await interaction.editReply({
-      content: `❌ I need the **Embed Links** permission in ${channel}.`,
-    });
+    const errorEmbed = createErrorEmbed(`I need the **Embed Links** permission in ${channel}.`);
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -107,27 +111,24 @@ async function handleModChannel(
   await services.loggingService.setModChannel(guildId, channel.id);
 
   // Send test message
-  const testEmbed = new EmbedBuilder()
-    .setTitle('<:tcet_tick:1437995479567962184> Moderation Logs Configured')
+  const testEmbed = createSuccessEmbed('Moderation Logs Configured')
+    .setTitle(`${CustomEmojis.TICK} Moderation Logs Configured`)
     .setDescription('This channel will now receive moderation action logs.')
-    .setColor(EmbedColors.SUCCESS)
     .setTimestamp();
 
   try {
     await textChannel.send({ embeds: [testEmbed] });
   } catch (error) {
     console.error('Failed to send test message:', error);
-    await interaction.editReply({
-      content: `⚠️ Channel configured but failed to send test message. Please check permissions.`,
-    });
+    const errorEmbed = createErrorEmbed('Channel configured but failed to send test message. Please check permissions.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Success response
-  const embed = new EmbedBuilder()
-    .setTitle('<:tcet_tick:1437995479567962184> Mod Logs Configured')
+  const embed = createSuccessEmbed('Mod Logs Configured')
+    .setTitle(`${CustomEmojis.TICK} Mod Logs Configured`)
     .setDescription(`Moderation logs will be sent to ${channel}`)
-    .setColor(EmbedColors.SUCCESS)
     .setFooter({
       text: `Configured by ${interaction.user.tag}`,
     })
@@ -144,11 +145,10 @@ async function handleSecurityChannel(
   await interaction.deferReply();
 
   const channel = interaction.options.getChannel('channel', true);
-  
+
   if (channel.type !== ChannelType.GuildText) {
-    await interaction.editReply({
-      content: '❌ Please select a text channel.',
-    });
+    const errorEmbed = createErrorEmbed('Please select a text channel.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -159,16 +159,14 @@ async function handleSecurityChannel(
   const permissions = textChannel.permissionsFor(botMember);
 
   if (!permissions?.has(PermissionFlagsBits.SendMessages)) {
-    await interaction.editReply({
-      content: `❌ I don't have permission to send messages in ${channel}.`,
-    });
+    const errorEmbed = createErrorEmbed(`I don't have permission to send messages in ${channel}.`);
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   if (!permissions?.has(PermissionFlagsBits.EmbedLinks)) {
-    await interaction.editReply({
-      content: `❌ I need the **Embed Links** permission in ${channel}.`,
-    });
+    const errorEmbed = createErrorEmbed(`I need the **Embed Links** permission in ${channel}.`);
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -176,8 +174,8 @@ async function handleSecurityChannel(
   await services.loggingService.setSecurityChannel(guildId, channel.id);
 
   // Send test message
-  const testEmbed = new EmbedBuilder()
-    .setTitle('🔒 Security Logs Configured')
+  const testEmbed = createSuccessEmbed('Security Logs Configured')
+    .setTitle(`${CustomEmojis.TICK} Security Logs Configured`)
     .setDescription('This channel will now receive anti-nuke and security event logs.')
     .setColor(EmbedColors.SECURITY)
     .setTimestamp();
@@ -186,17 +184,15 @@ async function handleSecurityChannel(
     await textChannel.send({ embeds: [testEmbed] });
   } catch (error) {
     console.error('Failed to send test message:', error);
-    await interaction.editReply({
-      content: `⚠️ Channel configured but failed to send test message. Please check permissions.`,
-    });
+    const errorEmbed = createErrorEmbed('Channel configured but failed to send test message. Please check permissions.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Success response
-  const embed = new EmbedBuilder()
-    .setTitle('<:tcet_tick:1437995479567962184> Security Logs Configured')
+  const embed = createSuccessEmbed('Security Logs Configured')
+    .setTitle(`${CustomEmojis.TICK} Security Logs Configured`)
     .setDescription(`Security logs will be sent to ${channel}`)
-    .setColor(EmbedColors.SUCCESS)
     .setFooter({
       text: `Configured by ${interaction.user.tag}`,
     })
@@ -214,9 +210,7 @@ async function handleView(
 
   const config = await services.loggingService.getConfig(guildId);
 
-  const embed = new EmbedBuilder()
-    .setTitle('📋 Logging Configuration')
-    .setColor(EmbedColors.INFO)
+  const embed = createInfoEmbed('📋 Logging Configuration', '')
     .setTimestamp();
 
   const fields: { name: string; value: string; inline?: boolean }[] = [];

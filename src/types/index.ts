@@ -155,6 +155,10 @@ export const DEFAULT_LIMITS = {
 export interface SlashCommand {
   data: any;
   execute: (interaction: any, ...args: any[]) => Promise<void>;
+  category?: string;
+  syntax?: string;
+  permission?: string;
+  example?: string;
 }
 
 export interface PrefixCommand {
@@ -163,6 +167,7 @@ export interface PrefixCommand {
   description: string;
   usage: string;
   permissions?: bigint[];
+  category?: string;
   example?: string;
   execute: (message: any, args: string[], ...rest: any[]) => Promise<void>;
 }

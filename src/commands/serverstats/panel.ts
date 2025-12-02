@@ -1,8 +1,8 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
+  PermissionFlagsBits,
   EmbedBuilder,
   GuildMember,
   ActionRowBuilder,
@@ -11,48 +11,53 @@ import {
 } from 'discord.js';
 import { SlashCommand, PrefixCommand } from '../../types';
 import { DatabaseManager } from '../../utils/DatabaseManager';
+import { createInfoEmbed, createErrorEmbed, createSuccessEmbed } from '../../utils/embedHelpers';
+import { CustomEmojis } from '../../utils/emoji';
 
 const slashCommand: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName('panel')
     .setDescription('View and manage server stats panels')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+  category: 'serverstats',
+  syntax: '/panel',
+  permission: 'Manage Channels',
+  example: '/panel',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) {
-      await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      const errorEmbed = createErrorEmbed('This command can only be used in a server.');
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       return;
     }
 
     const member = interaction.member as GuildMember;
     if (!member.permissions.has(PermissionFlagsBits.ManageChannels)) {
-      await interaction.reply({ content: 'You need Manage Channels permissions to use this command.', ephemeral: true });
+      const errorEmbed = createErrorEmbed('You need Manage Channels permissions to use this command.');
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       return;
     }
 
     const db = DatabaseManager.getInstance();
-    const panels = db.getPanels(interaction.guild.id);
+    const panels = await db.getPanels(interaction.guild.id);
 
     if (panels.length === 0) {
-      await interaction.reply({ 
-        content: 'No server stats panels found. Use `/setup` to create one.', 
-        ephemeral: true 
+      const errorEmbed = createErrorEmbed('No server stats panels found. Use `/setup` to create one.');
+      await interaction.reply({
+        embeds: [errorEmbed],
+        ephemeral: true
       });
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setTitle('Server Stats Panels')
-      .setDescription('Here are all the active stats panels on this server')
-      .setTimestamp()
-      .setFooter({ text: 'Panel Management' });
+    const embed = createInfoEmbed('Server Stats Panels', 'Here are all the active stats panels on this server')
+      .setTimestamp();
 
     // Add panels to embed
     for (const panel of panels) {
       const channelTypeText = panel.channelType === 'vc' ? 'Voice Channels' : 'Text Channels';
       const createdDate = new Date(panel.createdAt).toLocaleDateString();
-      
+
       embed.addFields([{
         name: `📊 ${panel.panelName}`,
         value: `Type: ${channelTypeText}\nCreated: ${createdDate}`,
@@ -74,10 +79,10 @@ const slashCommand: SlashCommand = {
       const row = new ActionRowBuilder<StringSelectMenuBuilder>()
         .addComponents(selectMenu);
 
-      const response = await interaction.reply({ 
-        embeds: [embed], 
-        components: [row], 
-        ephemeral: true 
+      const response = await interaction.reply({
+        embeds: [embed],
+        components: [row],
+        ephemeral: true
       });
 
       try {
@@ -98,7 +103,7 @@ const slashCommand: SlashCommand = {
         // Delete channels and category
         try {
           const guild = interaction.guild;
-          
+
           // Delete channels
           const channels = [
             selectedPanel.totalChannelId,
@@ -124,11 +129,10 @@ const slashCommand: SlashCommand = {
           }
 
           // Remove from database
-          db.deletePanel(interaction.guild.id, selectedPanelName);
+          await db.deletePanel(interaction.guild.id, selectedPanelName);
 
-          const successEmbed = new EmbedBuilder()
-            .setColor(0x00ff00)
-            .setTitle('Panel Deleted')
+          const successEmbed = createSuccessEmbed('Panel Deleted')
+            .setTitle(`${CustomEmojis.TICK} Panel Deleted`)
             .setDescription(`Successfully deleted the "${selectedPanelName}" panel and all its channels.`)
             .setTimestamp();
 
@@ -136,18 +140,18 @@ const slashCommand: SlashCommand = {
 
         } catch (error) {
           console.error('Error deleting panel:', error);
-          await selection.update({ 
-            content: 'An error occurred while deleting the panel.', 
-            components: [], 
-            embeds: [] 
+          const errorEmbed = createErrorEmbed('An error occurred while deleting the panel.');
+          await selection.update({
+            components: [],
+            embeds: [errorEmbed]
           });
         }
 
       } catch (error) {
-        await interaction.editReply({ 
-          content: 'No panel selected. Operation cancelled.', 
-          components: [], 
-          embeds: [embed] 
+        const errorEmbed = createErrorEmbed('No panel selected. Operation cancelled.');
+        await interaction.editReply({
+          components: [],
+          embeds: [errorEmbed]
         });
       }
     } else {
@@ -166,36 +170,35 @@ const prefixCommand: PrefixCommand = {
 
   async execute(message: Message, args: string[]): Promise<void> {
     if (!message.guild) {
-      await message.reply('This command can only be used in a server.');
+      const errorEmbed = createErrorEmbed('This command can only be used in a server.');
+      await message.reply({ embeds: [errorEmbed] });
       return;
     }
 
     const member = message.member;
     if (!member || !member.permissions.has(PermissionFlagsBits.ManageChannels)) {
-      await message.reply('You need Manage Channels permissions to use this command.');
+      const errorEmbed = createErrorEmbed('You need Manage Channels permissions to use this command.');
+      await message.reply({ embeds: [errorEmbed] });
       return;
     }
 
     const db = DatabaseManager.getInstance();
-    const panels = db.getPanels(message.guild.id);
+    const panels = await db.getPanels(message.guild.id);
 
     if (panels.length === 0) {
-      await message.reply('No server stats panels found. Use `setup` to create one.');
+      const errorEmbed = createErrorEmbed('No server stats panels found. Use `setup` to create one.');
+      await message.reply({ embeds: [errorEmbed] });
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x5865f2)
-      .setTitle('Server Stats Panels')
-      .setDescription('Here are all the active stats panels on this server')
-      .setTimestamp()
-      .setFooter({ text: 'Panel Management' });
+    const embed = createInfoEmbed('Server Stats Panels', 'Here are all the active stats panels on this server')
+      .setTimestamp();
 
     // Add panels to embed
     for (const panel of panels) {
       const channelTypeText = panel.channelType === 'vc' ? 'Voice Channels' : 'Text Channels';
       const createdDate = new Date(panel.createdAt).toLocaleDateString();
-      
+
       embed.addFields([{
         name: `📊 ${panel.panelName}`,
         value: `Type: ${channelTypeText}\nCreated: ${createdDate}`,

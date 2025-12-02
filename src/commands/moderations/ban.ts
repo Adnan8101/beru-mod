@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 import { canModerate, botCanModerate } from '../../utils/moderation';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
@@ -39,6 +40,11 @@ export const data = new SlashCommandBuilder()
       .setMaxValue(7)
   );
 
+export const category = 'moderation';
+export const syntax = '!ban <user> [reason] [delete_days]';
+export const example = '!ban @user Spamming 1';
+export const permission = 'Ban Members';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { caseService: CaseService; loggingService: LoggingService }
@@ -60,16 +66,12 @@ export async function execute(
     try {
       await guild.bans.create(user.id, { reason, deleteMessageSeconds: deleteDays * 86400 });
 
-      const embed = new EmbedBuilder()
-        .setTitle(`${CustomEmojis.TICK} User Banned`)
-        .setDescription(`**${user.tag}** has been banned from the server.`)
-        .setColor(EmbedColors.SUCCESS)
-        .addFields(
-          { name: `${CustomEmojis.USER} User`, value: `${user.tag} (${user.id})`, inline: true },
-          { name: `${CustomEmojis.STAFF} Moderator`, value: `${interaction.user.tag}`, inline: true },
-          { name: 'Reason', value: reason, inline: false }
-        )
-        .setTimestamp();
+      const embed = createModerationEmbed(
+        'Banned',
+        user as any, // Cast to any or User since we don't have a full GuildMember
+        interaction.user,
+        reason
+      );
 
       await interaction.editReply({ embeds: [embed] });
 
@@ -84,9 +86,7 @@ export async function execute(
 
       return;
     } catch (error: any) {
-      const errorEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.ERROR)
-        .setDescription(`${CustomEmojis.CROSS} Failed to ban user: ${error.message}`);
+      const errorEmbed = createErrorEmbed(`Failed to ban user: ${error.message}`);
       await interaction.editReply({ embeds: [errorEmbed] });
       return;
     }
@@ -95,18 +95,14 @@ export async function execute(
   // Check permissions
   const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.BanMembers);
   if (!moderatorCheck.allowed) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} ${moderatorCheck.reason}`);
+    const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   const botCheck = botCanModerate(guild.members.me!, target, PermissionFlagsBits.BanMembers);
   if (!botCheck.allowed) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} ${botCheck.reason}`);
+    const errorEmbed = createErrorEmbed(botCheck.reason || 'I cannot moderate this user.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -115,17 +111,13 @@ export async function execute(
   try {
     await target.ban({ reason, deleteMessageSeconds: deleteDays * 86400 });
 
-    const embed = new EmbedBuilder()
-      .setTitle(`${CustomEmojis.TICK} Member Banned`)
-      .setDescription(`**${target.user.tag}** has been banned from the server.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: `${CustomEmojis.USER} User`, value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: `${CustomEmojis.STAFF} Moderator`, value: `${interaction.user.tag}`, inline: true },
-        { name: 'Reason', value: reason, inline: false },
-        { name: `${CustomEmojis.FILES} Messages Deleted`, value: `${deleteDays} day${deleteDays !== 1 ? 's' : ''}`, inline: true }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Banned',
+      target.user,
+      interaction.user,
+      reason,
+      [{ name: `${CustomEmojis.FILES} Messages Deleted`, value: `${deleteDays} day${deleteDays !== 1 ? 's' : ''}`, inline: true }]
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -147,9 +139,7 @@ export async function execute(
       caseNumber: modCase.caseNumber,
     });
   } catch (error: any) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to ban member: ${error.message}`);
+    const errorEmbed = createErrorEmbed(`Failed to ban member: ${error.message}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

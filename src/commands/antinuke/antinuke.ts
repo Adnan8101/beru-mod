@@ -16,7 +16,7 @@ import { ConfigService } from '../../services/ConfigService';
 import { WhitelistService } from '../../services/WhitelistService';
 import { LoggingService } from '../../services/LoggingService';
 import { ActionLimiter } from '../../modules/ActionLimiter';
-import { ProtectionAction, WhitelistCategory, EmbedColors, RecoveryMode } from '../../types';
+import { ProtectionAction, WhitelistCategory, EmbedColors, RecoveryMode, SlashCommand, PunishmentType } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 
 export const data = new SlashCommandBuilder()
@@ -62,6 +62,11 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(subcommand =>
     subcommand
+      .setName('setup')
+      .setDescription('Auto-configure anti-nuke with recommended defaults (All Protections, Ban, 3/10s)')
+  )
+  .addSubcommand(subcommand =>
+    subcommand
       .setName('status')
       .setDescription('View anti-nuke status')
       .addBooleanOption(option =>
@@ -98,6 +103,15 @@ export const data = new SlashCommandBuilder()
       )
   );
 
+export const slashCommand: SlashCommand = {
+  data: data,
+  execute: execute,
+  category: 'antinuke',
+  syntax: '/antinuke <enable|disable|setup|status|restore|reset>',
+  permission: 'Administrator',
+  example: '/antinuke enable actions:ALL'
+};
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: {
@@ -118,6 +132,9 @@ export async function execute(
       break;
     case 'disable':
       await handleDisable(interaction, services, guildId);
+      break;
+    case 'setup':
+      await handleSetup(interaction, services, guildId);
       break;
     case 'status':
       await handleStatus(interaction, services, guildId);
@@ -141,7 +158,7 @@ async function handleEnable(
   const actionsString = interaction.options.getString('actions', true);
   const windowSeconds = interaction.options.getInteger('window_seconds') ?? 10;
   const windowMs = windowSeconds * 1000;
-  
+
   // Parse actions
   let protections: ProtectionAction[];
   if (actionsString === 'ALL') {
@@ -153,7 +170,7 @@ async function handleEnable(
   // Validate protections
   const validProtections = Object.values(ProtectionAction);
   const invalid = protections.filter(p => !validProtections.includes(p));
-  
+
   if (invalid.length > 0) {
     const errorEmbed = new EmbedBuilder()
       .setColor(EmbedColors.ERROR)
@@ -183,7 +200,7 @@ async function handleEnable(
   // Get existing config and merge protections (append new ones)
   const existingConfig = await services.configService.getConfig(guildId);
   let finalProtections: ProtectionAction[];
-  
+
   if (actionsString === 'ALL') {
     // If ALL selected, replace with all protections
     finalProtections = protections;
@@ -191,7 +208,7 @@ async function handleEnable(
     // Append new protections to existing ones (maintain order, avoid duplicates)
     const existingSet = new Set(existingConfig.protections);
     finalProtections = [...existingConfig.protections];
-    
+
     for (const protection of protections) {
       if (!existingSet.has(protection)) {
         finalProtections.push(protection);
@@ -206,10 +223,10 @@ async function handleEnable(
   await services.configService.enableAntiNuke(guildId, finalProtections);
 
   // Set default limits for newly added protections (3 actions per window)
-  const newProtections = actionsString === 'ALL' 
-    ? finalProtections 
+  const newProtections = actionsString === 'ALL'
+    ? finalProtections
     : protections.filter(p => !existingConfig?.protections.includes(p));
-  
+
   for (const protection of newProtections) {
     const existingLimit = await services.configService.getLimit(guildId, protection);
     if (!existingLimit) {
@@ -262,6 +279,63 @@ async function handleEnable(
   await interaction.editReply({
     embeds: [embed],
   });
+}
+
+async function handleSetup(
+  interaction: ChatInputCommandInteraction,
+  services: { configService: ConfigService },
+  guildId: string
+): Promise<void> {
+  await interaction.deferReply();
+
+  const allProtections = Object.values(ProtectionAction);
+
+  // 1. Enable Anti-Nuke with ALL protections
+  await services.configService.enableAntiNuke(guildId, allProtections);
+
+  // 2. Set default limits (3 actions in 10s)
+  const defaultLimit = 3;
+  const defaultWindowMs = 10000; // 10s
+
+  for (const action of allProtections) {
+    await services.configService.setLimit(guildId, action, defaultLimit, defaultWindowMs);
+  }
+
+  // 3. Set default punishment (BAN)
+  for (const action of allProtections) {
+    await services.configService.setPunishment(guildId, {
+      action: action,
+      punishment: PunishmentType.BAN
+    });
+  }
+
+  // 4. Send success embed
+  const embed = new EmbedBuilder()
+    .setTitle(`${CustomEmojis.TICK} Anti-Nuke Setup Complete`)
+    .setDescription(`${CustomEmojis.SETTING} Anti-Nuke has been fully configured with recommended defaults.`)
+    .setColor(EmbedColors.SUCCESS)
+    .addFields(
+      {
+        name: 'Configuration',
+        value: [
+          `${CustomEmojis.TICK} **Enabled:** All Protections`,
+          `${CustomEmojis.TICK} **Limits:** 3 actions in 10 seconds`,
+          `${CustomEmojis.TICK} **Punishment:** Ban`,
+        ].join('\n'),
+        inline: false,
+      },
+      {
+        name: 'Next Steps',
+        value: 'You can customize specific settings using `/setlimit` and `/setpunishment` if needed.',
+        inline: false,
+      }
+    )
+    .setFooter({
+      text: `Setup by ${interaction.user.tag} (${interaction.user.id})`,
+    })
+    .setTimestamp();
+
+  await interaction.editReply({ embeds: [embed] });
 }
 
 async function handleDisable(

@@ -130,23 +130,19 @@ export class LoggingService {
       duration?: string;
     }
   ): Promise<boolean> {
+    const description = [
+      `**Target:** <@${data.target.id}> (\`${data.target.id}\`)`,
+      `**Moderator:** <@${data.moderator.id}> (\`${data.moderator.id}\`)`,
+      `**Reason:** ${data.reason}`,
+      data.duration ? `**Duration:** ${data.duration}` : null,
+      data.caseNumber ? `**Case:** #${data.caseNumber}` : null,
+    ].filter(Boolean).join('\n');
+
     const embed = new EmbedBuilder()
-      .setTitle(`🔨 ${data.action}`)
+      .setTitle(`⚖️ Moderation: ${data.action}`)
       .setColor(EmbedColors.MODERATION)
-      .addFields(
-        { name: 'Target', value: `${data.target.tag} (${data.target.id})`, inline: true },
-        { name: 'Moderator', value: `${data.moderator.tag} (${data.moderator.id})`, inline: true },
-        { name: 'Reason', value: data.reason, inline: false }
-      )
+      .setDescription(description)
       .setTimestamp();
-
-    if (data.caseNumber) {
-      embed.addFields({ name: 'Case', value: `#${data.caseNumber}`, inline: true });
-    }
-
-    if (data.duration) {
-      embed.addFields({ name: 'Duration', value: data.duration, inline: true });
-    }
 
     return await this.logMod(guildId, embed);
   }
@@ -157,7 +153,7 @@ export class LoggingService {
   private async sendToChannel(channelId: string, embed: EmbedBuilder): Promise<boolean> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      
+
       if (!channel || channel.type !== ChannelType.GuildText) {
         return false;
       }
@@ -183,32 +179,20 @@ export class LoggingService {
     punishment?: string;
     caseId?: number;
   }): EmbedBuilder {
-    const embed = new EmbedBuilder()
-      .setTitle(data.title)
+    const description = [
+      `**Executor:** <@${data.executorId}> (\`${data.executorId}\`)`,
+      `**Action:** ${data.action}`,
+      data.limit ? `**Limit:** ${data.limit}` : null,
+      data.count ? `**Count:** ${data.count}` : null,
+      data.punishment ? `**Punishment:** ${data.punishment.toUpperCase()}` : null,
+      data.caseId ? `**Case ID:** #${data.caseId}` : null,
+    ].filter(Boolean).join('\n');
+
+    return new EmbedBuilder()
+      .setTitle(`🛡️ Security Alert: ${data.action}`)
       .setColor(EmbedColors.SECURITY)
-      .addFields(
-        { name: 'Executor', value: `<@${data.executorId}> (${data.executorTag})\nID: ${data.executorId}`, inline: false },
-        { name: 'Action', value: data.action, inline: true }
-      )
+      .setDescription(description)
       .setTimestamp();
-
-    if (data.limit !== undefined) {
-      embed.addFields({ name: 'Limit', value: data.limit.toString(), inline: true });
-    }
-
-    if (data.count !== undefined) {
-      embed.addFields({ name: 'Count', value: data.count.toString(), inline: true });
-    }
-
-    if (data.punishment) {
-      embed.addFields({ name: 'Punishment', value: data.punishment.toUpperCase(), inline: true });
-    }
-
-    if (data.caseId) {
-      embed.addFields({ name: 'Case ID', value: `#${data.caseId}`, inline: true });
-    }
-
-    return embed;
   }
 
   /**
@@ -224,25 +208,19 @@ export class LoggingService {
     reason?: string;
     caseId?: number;
   }): EmbedBuilder {
-    const embed = new EmbedBuilder()
-      .setTitle(data.title)
+    const description = [
+      `**Target:** <@${data.targetId}> (\`${data.targetId}\`)`,
+      `**Moderator:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
+      `**Action:** ${data.action}`,
+      data.reason ? `**Reason:** ${data.reason}` : null,
+      data.caseId ? `**Case ID:** #${data.caseId}` : null,
+    ].filter(Boolean).join('\n');
+
+    return new EmbedBuilder()
+      .setTitle(`⚖️ Moderation: ${data.action}`)
       .setColor(EmbedColors.MODERATION)
-      .addFields(
-        { name: 'Target', value: `<@${data.targetId}> (${data.targetTag})\nID: ${data.targetId}`, inline: false },
-        { name: 'Moderator', value: `<@${data.moderatorId}> (${data.moderatorTag})`, inline: false },
-        { name: 'Action', value: data.action, inline: true }
-      )
+      .setDescription(description)
       .setTimestamp();
-
-    if (data.reason) {
-      embed.addFields({ name: 'Reason', value: data.reason, inline: false });
-    }
-
-    if (data.caseId) {
-      embed.addFields({ name: 'Case ID', value: `#${data.caseId}`, inline: true });
-    }
-
-    return embed;
   }
 
   /**

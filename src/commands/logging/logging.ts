@@ -13,6 +13,7 @@ import {
 } from 'discord.js';
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
+import { createErrorEmbed, createSuccessEmbed, createInfoEmbed } from '../../utils/embedHelpers';
 
 interface LoggingServices {
   prisma: any;
@@ -65,9 +66,7 @@ async function handleEnable(interaction: ChatInputCommandInteraction, prisma: an
 
   // Verify it's a text channel
   if (!channel.isTextBased()) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Please select a text channel for logging.`);
+    const errorEmbed = createErrorEmbed('Please select a text channel for logging.');
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
@@ -75,11 +74,7 @@ async function handleEnable(interaction: ChatInputCommandInteraction, prisma: an
   // Check bot permissions in that channel
   const permissions = channel.permissionsFor(interaction.guild!.members.me!);
   if (!permissions?.has(PermissionFlagsBits.SendMessages) || !permissions?.has(PermissionFlagsBits.EmbedLinks)) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(
-        `${CustomEmojis.CROSS} I need **Send Messages** and **Embed Links** permissions in ${channel}!`
-      );
+    const errorEmbed = createErrorEmbed(`I need **Send Messages** and **Embed Links** permissions in ${channel}!`);
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
@@ -98,8 +93,7 @@ async function handleEnable(interaction: ChatInputCommandInteraction, prisma: an
     },
   });
 
-  const embed = new EmbedBuilder()
-    .setColor(EmbedColors.SUCCESS)
+  const embed = createSuccessEmbed('Logging Enabled')
     .setTitle(`${CustomEmojis.TICK} Logging Enabled`)
     .setDescription(
       `Server logging has been enabled!\n\n` +
@@ -115,10 +109,7 @@ async function handleEnable(interaction: ChatInputCommandInteraction, prisma: an
   await interaction.reply({ embeds: [embed] });
 
   // Send test message to log channel
-  const testEmbed = new EmbedBuilder()
-    .setColor(EmbedColors.INFO)
-    .setTitle(`${CustomEmojis.LOGGING} Logging System Activated`)
-    .setDescription(`Server logging has been enabled by ${interaction.user}.\n\nThis channel will receive audit log events.`)
+  const testEmbed = createInfoEmbed(`${CustomEmojis.LOGGING} Logging System Activated`, `Server logging has been enabled by ${interaction.user}.\n\nThis channel will receive audit log events.`)
     .setTimestamp();
 
   await channel.send({ embeds: [testEmbed] });
@@ -132,9 +123,7 @@ async function handleDisable(interaction: ChatInputCommandInteraction, prisma: a
     data: { enabled: false },
   });
 
-  const embed = new EmbedBuilder()
-    .setColor(EmbedColors.SUCCESS)
-    .setDescription(`${CustomEmojis.TICK} Server logging has been disabled.`);
+  const embed = createSuccessEmbed('Server logging has been disabled.');
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
@@ -147,31 +136,26 @@ async function handleStatus(interaction: ChatInputCommandInteraction, prisma: an
   });
 
   if (!config || !config.enabled) {
-    const embed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Server logging is currently disabled.\n\nUse \`/logging enable\` to enable it.`);
+    const embed = createErrorEmbed('Server logging is currently disabled.\n\nUse `/logging enable` to enable it.');
     await interaction.reply({ embeds: [embed], ephemeral: true });
     return;
   }
 
   const channel = interaction.guild!.channels.cache.get(config.channelId!);
 
-  const embed = new EmbedBuilder()
-    .setColor(EmbedColors.INFO)
-    .setTitle(`${CustomEmojis.LOGGING} Logging Configuration`)
-    .setDescription(
-      `${CustomEmojis.TICK} **Status:** Enabled\n` +
-      `${CustomEmojis.CHANNEL} **Log Channel:** ${channel || 'Unknown (deleted?)'}\n\n` +
-      `**Active Events:**\n` +
-      `${config.logRoleCreate ? CustomEmojis.TICK : CustomEmojis.CROSS} Role Create\n` +
-      `${config.logRoleEdit ? CustomEmojis.TICK : CustomEmojis.CROSS} Role Edit\n` +
-      `${config.logRoleDelete ? CustomEmojis.TICK : CustomEmojis.CROSS} Role Delete\n` +
-      `${config.logChannelCreate ? CustomEmojis.TICK : CustomEmojis.CROSS} Channel Create\n` +
-      `${config.logChannelEdit ? CustomEmojis.TICK : CustomEmojis.CROSS} Channel Edit\n` +
-      `${config.logChannelDelete ? CustomEmojis.TICK : CustomEmojis.CROSS} Channel Delete\n` +
-      `${config.logMessageEdit ? CustomEmojis.TICK : CustomEmojis.CROSS} Message Edit\n` +
-      `${config.logMessageDelete ? CustomEmojis.TICK : CustomEmojis.CROSS} Message Delete`
-    )
+  const embed = createInfoEmbed(`${CustomEmojis.LOGGING} Logging Configuration`,
+    `${CustomEmojis.TICK} **Status:** Enabled\n` +
+    `${CustomEmojis.CHANNEL} **Log Channel:** ${channel || 'Unknown (deleted?)'}\n\n` +
+    `**Active Events:**\n` +
+    `${config.logRoleCreate ? CustomEmojis.TICK : CustomEmojis.CROSS} Role Create\n` +
+    `${config.logRoleEdit ? CustomEmojis.TICK : CustomEmojis.CROSS} Role Edit\n` +
+    `${config.logRoleDelete ? CustomEmojis.TICK : CustomEmojis.CROSS} Role Delete\n` +
+    `${config.logChannelCreate ? CustomEmojis.TICK : CustomEmojis.CROSS} Channel Create\n` +
+    `${config.logChannelEdit ? CustomEmojis.TICK : CustomEmojis.CROSS} Channel Edit\n` +
+    `${config.logChannelDelete ? CustomEmojis.TICK : CustomEmojis.CROSS} Channel Delete\n` +
+    `${config.logMessageEdit ? CustomEmojis.TICK : CustomEmojis.CROSS} Message Edit\n` +
+    `${config.logMessageDelete ? CustomEmojis.TICK : CustomEmojis.CROSS} Message Delete`
+  )
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed], ephemeral: true });

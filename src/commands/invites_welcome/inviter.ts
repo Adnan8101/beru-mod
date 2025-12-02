@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   User,
   GuildMember
@@ -17,6 +17,10 @@ const slashCommand: SlashCommand = {
       option.setName('user')
         .setDescription('The user to check inviter for')
         .setRequired(true)),
+  category: 'invites_welcome',
+  syntax: '/inviter <user>',
+  permission: 'None',
+  example: '/inviter @user',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const user = interaction.options.getUser('user', true);
@@ -29,7 +33,7 @@ const slashCommand: SlashCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      const inviteData = db.getInviteData(guild.id, user.id);
+      const inviteData = await db.getInviteData(guild.id, user.id);
 
       if (!inviteData || !inviteData.inviterId) {
         await interaction.reply(`${user.toString()} joined through an unknown invite or vanity URL.`);
@@ -45,9 +49,9 @@ const slashCommand: SlashCommand = {
       );
     } catch (error) {
       console.error('Error fetching inviter data:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while fetching inviter information.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while fetching inviter information.',
+        ephemeral: true
       });
     }
   },
@@ -74,7 +78,7 @@ const prefixCommand: PrefixCommand = {
 
     const userMention = args[0];
     const userId = userMention.replace(/[<@!>]/g, '');
-    
+
     try {
       const user = await guild.members.fetch(userId).catch(() => null);
       if (!user) {
@@ -83,7 +87,7 @@ const prefixCommand: PrefixCommand = {
       }
 
       const db = DatabaseManager.getInstance();
-      const inviteData = db.getInviteData(guild.id, user.id);
+      const inviteData = await db.getInviteData(guild.id, user.id);
 
       if (!inviteData || !inviteData.inviterId) {
         await message.reply(`${user.toString()} joined through an unknown invite or vanity URL.`);

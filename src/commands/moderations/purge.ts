@@ -11,6 +11,7 @@ import {
 } from 'discord.js';
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
+import { createErrorEmbed, createSuccessEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('purge')
@@ -35,14 +36,17 @@ export const data = new SlashCommandBuilder()
       .addIntegerOption(opt => opt.setName('amount').setDescription('Number of messages (1-100)').setRequired(true).setMinValue(1).setMaxValue(100))
   );
 
+export const category = 'moderation';
+export const syntax = '!purge <amount> [bots|human]';
+export const example = '!purge 10';
+export const permission = 'Manage Messages';
+
 export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ ephemeral: true });
 
   const channel = interaction.channel as TextChannel;
   if (!channel || !channel.permissionsFor) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} This command must be used in a text channel.`);
+    const errorEmbed = createErrorEmbed('This command must be used in a text channel.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -95,9 +99,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   }
 
   if (!botMember.permissions.has(PermissionFlagsBits.ManageMessages)) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} I need the **Manage Messages** permission to purge messages.`);
+    const errorEmbed = createErrorEmbed('I need the **Manage Messages** permission to purge messages.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -133,16 +135,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       }
     }
 
-    const successEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.SUCCESS)
-      .setDescription(`${CustomEmojis.TICK} Purged **${deletedCount}** message${deletedCount !== 1 ? 's' : ''} from ${channel}`);
+    const successEmbed = createSuccessEmbed(`Purged **${deletedCount}** message${deletedCount !== 1 ? 's' : ''} from ${channel}`);
 
     await interaction.editReply({ embeds: [successEmbed] });
   } catch (error: any) {
     console.error('Purge error:', error);
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to purge messages: ${error.message || 'Unknown error'}`);
+    const errorEmbed = createErrorEmbed(`Failed to purge messages: ${error.message || 'Unknown error'}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

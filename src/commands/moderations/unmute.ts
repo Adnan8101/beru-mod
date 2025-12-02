@@ -12,6 +12,7 @@ import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('unmute')
@@ -30,6 +31,11 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
+export const category = 'moderation';
+export const syntax = '!unmute <user> [reason]';
+export const example = '!unmute @user Appeal accepted';
+export const permission = 'Moderate Members';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { caseService: CaseService; loggingService: LoggingService }
@@ -45,17 +51,15 @@ export async function execute(
   try {
     target = await guild.members.fetch(user.id);
   } catch {
-    await interaction.editReply({
-      content: '❌ User is not a member of this server.',
-    });
+    const errorEmbed = createErrorEmbed('User is not a member of this server.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check if member is muted
   if (!target.isCommunicationDisabled()) {
-    await interaction.editReply({
-      content: '❌ This member is not muted.',
-    });
+    const errorEmbed = createErrorEmbed('This member is not muted.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -63,16 +67,12 @@ export async function execute(
   try {
     await target.timeout(null, reason);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> Member Unmuted')
-      .setDescription(`${target.user.tag} has been unmuted.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: 'User', value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Unmuted',
+      target.user,
+      interaction.user,
+      reason
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -94,8 +94,7 @@ export async function execute(
       caseNumber: modCase.caseNumber,
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to unmute member: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to unmute member: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

@@ -38,6 +38,6 @@ export class AutoResponder {
       }
     });
 
-    console.log('<:tcet_tick:1437995479567962184> AutoResponder message listener setup');
+    console.log('✔ AutoResponder message listener setup');
   }
 }

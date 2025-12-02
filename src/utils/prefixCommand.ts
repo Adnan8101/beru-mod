@@ -40,10 +40,10 @@ function parseArgs(content: string, prefix: string): string[] {
   const args: string[] = [];
   let current = '';
   let inQuotes = false;
-  
+
   for (let i = 0; i < withoutPrefix.length; i++) {
     const char = withoutPrefix[i];
-    
+
     if (char === '"' || char === "'") {
       inQuotes = !inQuotes;
     } else if (char === ' ' && !inQuotes) {
@@ -55,11 +55,11 @@ function parseArgs(content: string, prefix: string): string[] {
       current += char;
     }
   }
-  
+
   if (current) {
     args.push(current);
   }
-  
+
   return args;
 }
 
@@ -70,10 +70,10 @@ function parseUserId(arg: string): string | null {
   // <@123456789> or <@!123456789>
   const userMention = arg.match(/^<@!?(\d+)>$/);
   if (userMention) return userMention[1];
-  
+
   // Direct ID
   if (/^\d+$/.test(arg)) return arg;
-  
+
   return null;
 }
 
@@ -81,10 +81,10 @@ function parseRoleId(arg: string): string | null {
   // <@&123456789>
   const roleMention = arg.match(/^<@&(\d+)>$/);
   if (roleMention) return roleMention[1];
-  
+
   // Direct ID
   if (/^\d+$/.test(arg)) return arg;
-  
+
   return null;
 }
 
@@ -92,11 +92,19 @@ function parseChannelId(arg: string): string | null {
   // <#123456789>
   const channelMention = arg.match(/^<#(\d+)>$/);
   if (channelMention) return channelMention[1];
-  
+
   // Direct ID
   if (/^\d+$/.test(arg)) return arg;
-  
+
   return null;
+}
+
+
+export class ValidationError extends Error {
+  constructor(public message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
 }
 
 /**
@@ -106,14 +114,14 @@ function createOptions(message: Message, args: string[], commandName: string): P
   const parsedOptions: Map<string, any> = new Map();
   let subcommand: string | null = null;
   let subcommandGroup: string | null = null;
-  
+
   // Parse based on command structure
   // Check if first arg after command is a subcommand (no special chars)
-  if (args.length > 1) {
+  if (args.length > 1 && commandName !== 'help') {
     const potentialSubcommand = args[1].toLowerCase();
     // Common subcommands
     const commonSubcommands = ['add', 'remove', 'setup', 'list', 'view', 'config', 'lock', 'unlock', 'hide', 'unhide', 'slowmode', 'all', 'bots', 'human', 'enable', 'disable'];
-    
+
     if (commonSubcommands.includes(potentialSubcommand) || (!args[1].match(/^<[@#&]/) && !args[1].match(/^\d+$/))) {
       // Check if it looks like a subcommand (not a mention or number)
       const nextArg = args[2];
@@ -123,7 +131,7 @@ function createOptions(message: Message, args: string[], commandName: string): P
       }
     }
   }
-  
+
   // Special handling for purge command
   if (commandName === 'purge') {
     if (args.length > 1) {
@@ -141,21 +149,21 @@ function createOptions(message: Message, args: string[], commandName: string): P
       }
     }
   }
-  
+
   // Parse remaining args as positional
   let argIndex = 1;
-  
+
   // Determine command structure and parse accordingly
   const needsUser = ['ban', 'unban', 'kick', 'mute', 'unmute', 'warn', 'checkwarn', 'softban', 'nick', 'role'].includes(commandName) ||
-                    (commandName === 'quarantine' && ['add', 'remove'].includes(subcommand || ''));
-  const needsRole = ['role'].includes(commandName) || 
-                    (commandName === 'quarantine' && subcommand === 'setup');
+    (commandName === 'quarantine' && ['add', 'remove'].includes(subcommand || ''));
+  const needsRole = ['role'].includes(commandName) ||
+    (commandName === 'quarantine' && subcommand === 'setup');
   const needsChannel = ['channel'].includes(commandName) ||
-                       (commandName === 'quarantine' && subcommand === 'setup');
+    (commandName === 'quarantine' && subcommand === 'setup');
   const needsDuration = ['mute', 'softban'].includes(commandName) ||
-                        (commandName === 'channel' && subcommand === 'slowmode');
+    (commandName === 'channel' && subcommand === 'slowmode');
   const needsString = ['setprefix', 'nick'].includes(commandName);
-  
+
   // Parse user if needed (first positional)
   if (needsUser && argIndex < args.length) {
     const arg = args[argIndex];
@@ -164,7 +172,7 @@ function createOptions(message: Message, args: string[], commandName: string): P
       argIndex++;
     }
   }
-  
+
   // Parse role if needed
   if (needsRole && argIndex < args.length) {
     const arg = args[argIndex];
@@ -173,7 +181,7 @@ function createOptions(message: Message, args: string[], commandName: string): P
       argIndex++;
     }
   }
-  
+
   // Parse channel if needed
   if (needsChannel && argIndex < args.length) {
     const arg = args[argIndex];
@@ -182,7 +190,7 @@ function createOptions(message: Message, args: string[], commandName: string): P
       argIndex++;
     }
   }
-  
+
   // Parse duration if needed (for mute, softban, slowmode)
   if (needsDuration && argIndex < args.length) {
     const arg = args[argIndex];
@@ -192,7 +200,7 @@ function createOptions(message: Message, args: string[], commandName: string): P
       argIndex++;
     }
   }
-  
+
   // Parse string if needed (for setprefix, nick)
   if (needsString && argIndex < args.length) {
     const arg = args[argIndex];
@@ -203,8 +211,13 @@ function createOptions(message: Message, args: string[], commandName: string): P
       argIndex++;
     }
   }
-  
+
   // Parse special args for specific commands
+  if (commandName === 'help' && argIndex < args.length) {
+    parsedOptions.set('command', args[argIndex]);
+    argIndex++;
+  }
+
   if (commandName === 'ban' && argIndex < args.length) {
     const arg = args[argIndex];
     if (/^\d+$/.test(arg) && parseInt(arg) <= 7) {
@@ -212,125 +225,115 @@ function createOptions(message: Message, args: string[], commandName: string): P
       argIndex++;
     }
   }
-  
+
   // Remaining args are reason
   if (argIndex < args.length) {
     parsedOptions.set('reason', args.slice(argIndex).join(' '));
   }
-  
+
   // Special handling for unban (needs user_id)
   if (commandName === 'unban' && parsedOptions.has('user')) {
     parsedOptions.set('user_id', parsedOptions.get('user'));
   }
-  
+
   return {
     getString(name: string, required: boolean = false): string | null {
       const value = parsedOptions.get(name);
       if (required && !value) {
-        const { formatMissingOptionError } = require('./commandExamples');
-        const usedPrefix = message.content.split(commandName)[0];
-        throw new Error(formatMissingOptionError(name, commandName, usedPrefix));
+        throw new ValidationError(`Missing required option: ${name}`);
       }
       return value || null;
     },
-    
+
     getUser(name: string, required: boolean = false): User | null {
       const value = parsedOptions.get(name);
       if (!value) {
         if (required) {
-          const { formatMissingOptionError } = require('./commandExamples');
-          const usedPrefix = message.content.split(commandName)[0];
-          throw new Error(formatMissingOptionError('user', commandName, usedPrefix));
+          throw new ValidationError('Please mention a user.');
         }
         return null;
       }
-      
+
       const userId = parseUserId(value);
       if (!userId) {
         if (required) {
-          const { formatMissingOptionError } = require('./commandExamples');
-          const usedPrefix = message.content.split(commandName)[0];
-          throw new Error(formatMissingOptionError('user', commandName, usedPrefix));
+          throw new ValidationError('Please mention a user.');
         }
         return null;
       }
-      
+
       return message.client.users.cache.get(userId) || null;
     },
-    
+
     getRole(name: string, required: boolean = false): any {
       const value = parsedOptions.get(name);
       if (!value) {
         if (required) {
-          const { formatMissingOptionError } = require('./commandExamples');
-          const usedPrefix = message.content.split(commandName)[0];
-          throw new Error(formatMissingOptionError('role', commandName, usedPrefix));
+          throw new ValidationError('Please mention a role.');
         }
         return null;
       }
-      
+
       const roleId = parseRoleId(value);
       if (!roleId || !message.guild) {
         if (required) {
-          const { formatMissingOptionError } = require('./commandExamples');
-          const usedPrefix = message.content.split(commandName)[0];
-          throw new Error(formatMissingOptionError('role', commandName, usedPrefix));
+          throw new ValidationError('Please mention a role.');
         }
         return null;
       }
-      
+
       return message.guild.roles.cache.get(roleId) || null;
     },
-    
+
     getChannel(name: string, required: boolean = false): any {
       const value = parsedOptions.get(name);
       if (!value) {
-        if (required) throw new Error(`Missing required option: ${name}`);
+        if (required) throw new ValidationError(`Missing required option: ${name}`);
         return null;
       }
-      
+
       const channelId = parseChannelId(value);
       if (!channelId || !message.guild) {
-        if (required) throw new Error(`Invalid channel: ${value}`);
+        if (required) throw new ValidationError(`Invalid channel: ${value}`);
         return null;
       }
-      
+
       return message.guild.channels.cache.get(channelId) || null;
     },
-    
+
     getInteger(name: string, required: boolean = false): number | null {
       const value = parsedOptions.get(name);
       if (!value) {
-        if (required) throw new Error(`Missing required option: ${name}`);
+        if (required) throw new ValidationError(`Missing required option: ${name}`);
         return null;
       }
-      
+
       const num = parseInt(value);
       if (isNaN(num)) {
-        if (required) throw new Error(`Invalid number: ${value}`);
+        if (required) throw new ValidationError(`Invalid number: ${value}`);
         return null;
       }
-      
+
       return num;
     },
-    
+
     getBoolean(name: string, required: boolean = false): boolean | null {
       const value = parsedOptions.get(name);
       if (!value) {
-        if (required) throw new Error(`Missing required option: ${name}`);
+        if (required) throw new ValidationError(`Missing required option: ${name}`);
         return null;
       }
-      
+
       return value.toLowerCase() === 'true' || value === '1' || value.toLowerCase() === 'yes';
     },
-    
+
     getSubcommand(throwOnEmpty: boolean = false): string | null {
       if (throwOnEmpty && !subcommand) {
-        throw new Error('Missing subcommand');
+        throw new ValidationError('Missing subcommand');
       }
       return subcommand;
     },
-    
+
     getSubcommandGroup(throwOnEmpty: boolean = false): string | null {
       return subcommandGroup;
     }
@@ -346,10 +349,10 @@ export async function createPrefixInteraction(
 ): Promise<PrefixInteraction> {
   const args = parseArgs(message.content, prefix);
   const commandName = args[0]?.toLowerCase();
-  
+
   let replyMessage: Message | null = null;
   let isDeferred = false;
-  
+
   const interaction: PrefixInteraction = {
     guild: message.guild,
     guildId: message.guildId,
@@ -360,7 +363,7 @@ export async function createPrefixInteraction(
     replied: false,
     deferred: false,
     options: createOptions(message, args, commandName),
-    
+
     async reply(options: any): Promise<Message> {
       if ('send' in message.channel) {
         if (typeof options === 'string') {
@@ -372,12 +375,12 @@ export async function createPrefixInteraction(
       interaction.replied = true;
       return replyMessage!;
     },
-    
+
     async editReply(options: any): Promise<Message> {
       if (!replyMessage) {
         return interaction.reply(options);
       }
-      
+
       if (typeof options === 'string') {
         await replyMessage.edit({ content: options });
       } else {
@@ -385,7 +388,7 @@ export async function createPrefixInteraction(
       }
       return replyMessage;
     },
-    
+
     async followUp(options: any): Promise<Message> {
       if ('send' in message.channel) {
         if (typeof options === 'string') {
@@ -395,18 +398,18 @@ export async function createPrefixInteraction(
       }
       throw new Error('Channel does not support sending messages');
     },
-    
+
     async deferReply(options?: any): Promise<void> {
       // For prefix commands, don't send "thinking" message
       // Just mark as deferred
       isDeferred = true;
       interaction.deferred = true;
     },
-    
+
     inGuild(): boolean {
       return message.guild !== null;
     }
   };
-  
+
   return interaction;
 }

@@ -25,14 +25,17 @@ import { AuditLogMonitor } from './modules/AuditLogMonitor';
 import { RecoveryManager } from './modules/RecoveryManager';
 import { AutoResponder } from './modules/AutoResponder';
 import { LoggingMonitor } from './modules/LoggingMonitor';
+import { QuarantineMonitor } from './modules/QuarantineMonitor';
 
 // Utils
+import { createUsageEmbed } from './utils/embedHelpers';
+import { ValidationError } from './utils/prefixCommand';
 import { DatabaseManager } from './utils/DatabaseManager';
 import * as antinukeCommand from './commands/antinuke/antinuke';
 import * as setlimitCommand from './commands/antinuke/setlimit';
-import * as setpunishmentCommand from './commands/automod/setpunishment';
+import * as setpunishmentCommand from './commands/antinuke/setpunishment';
 import * as logsCommand from './commands/logging/logs';
-import * as whitelistCommand from './commands/automod/whitelist';
+import * as whitelistCommand from './commands/antinuke/whitelist';
 import * as automodWhitelistCommand from './commands/automod/automod-whitelist';
 import * as serverCommand from './commands/server';
 import * as autoresponderCommand from './commands/autoresponder/autoresponder';
@@ -52,7 +55,7 @@ import * as roleCommand from './commands/moderations/role';
 import * as setprefixCommand from './commands/setprefix';
 import * as purgeCommand from './commands/moderations/purge';
 import * as nukeCommand from './commands/moderations/nuke';
-import * as automodCommand from './commands/automod';
+import * as automodCommand from './commands/automod/automod';
 import * as loggingCommand from './commands/logging/logging';
 import * as helpCommand from './commands/help';
 import * as modlogsCommand from './commands/logging/modlogs';
@@ -119,7 +122,7 @@ const inviteService = new InviteService(prisma);
 
 // Initialize modules
 const actionLimiter = new ActionLimiter(prisma, configService);
-const executor = new Executor(prisma, client, configService, caseService, loggingService);
+const executor = new Executor(prisma, client, configService, caseService, loggingService, actionLimiter);
 const recoveryManager = new RecoveryManager(prisma, client, caseService, loggingService);
 const auditLogMonitor = new AuditLogMonitor(
   client,
@@ -130,6 +133,7 @@ const auditLogMonitor = new AuditLogMonitor(
 );
 const autoResponder = new AutoResponder(client, autoResponderService);
 const loggingMonitor = new LoggingMonitor(client, prisma);
+const quarantineMonitor = new QuarantineMonitor(client, moderationService);
 
 // Initialize AutoModMonitor - THIS IS CRITICAL FOR 24/7 MESSAGE MONITORING
 let autoModMonitor: any = null;
@@ -148,6 +152,7 @@ const services = {
   guildConfigService,
   autoModService,
   prisma,
+  commands,
 };
 
 // Register commands
@@ -169,7 +174,7 @@ function registerCommands() {
   commands.set(loggingCommand.data.name, loggingCommand);
   commands.set(helpCommand.data.name, helpCommand);
   commands.set(modlogsCommand.data.name, modlogsCommand);
-  
+
   // Moderation commands
   commands.set(banCommand.data.name, banCommand);
   commands.set(unbanCommand.data.name, unbanCommand);
@@ -182,7 +187,7 @@ function registerCommands() {
   commands.set(softbanCommand.data.name, softbanCommand);
   commands.set(nickCommand.data.name, nickCommand);
   commands.set(roleCommand.data.name, roleCommand);
-  
+
   // Invite/Welcome commands
   commands.set(invitesCommand.data.name, invitesCommand);
   commands.set(welcomeCommand.data.name, welcomeCommand);
@@ -194,20 +199,20 @@ function registerCommands() {
   commands.set(leaveCommand.data.name, leaveCommand);
   commands.set(leaveTestCommand.data.name, leaveTestCommand);
   commands.set(testWelcomeCommand.data.name, testWelcomeCommand);
-  
+
   // Server Stats commands
   commands.set(setupCommand.data.name, setupCommand);
   commands.set(panelCommand.data.name, panelCommand);
   commands.set(refreshCommand.data.name, refreshCommand);
   commands.set(deletePanelCommand.data.name, deletePanelCommand);
 
-  console.log('<:tcet_tick:1437995479567962184> Commands registered:', Array.from(commands.keys()).join(', '));
+  console.log('✔ Commands registered:', Array.from(commands.keys()).join(', '));
 }
 
 // Deploy commands to Discord
 async function deployCommands() {
   const commandsData = Array.from(commands.values()).map(cmd => cmd.data.toJSON());
-  
+
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN!);
 
   try {
@@ -218,9 +223,9 @@ async function deployCommands() {
       { body: commandsData }
     );
 
-    console.log('<:tcet_tick:1437995479567962184> Successfully deployed slash commands globally');
+    console.log('✔ Successfully deployed slash commands globally');
   } catch (error) {
-    console.error('❌ Failed to deploy commands:', error);
+    console.error('✖ Failed to deploy commands:', error);
   }
 }
 
@@ -228,11 +233,11 @@ async function deployCommands() {
 function setupEventHandlers() {
   // Ready event
   client.once('ready', async () => {
-    console.log(`<:tcet_tick:1437995479567962184> Bot logged in as ${client.user?.tag}`);
+    console.log(`✔ Bot logged in as ${client.user?.tag}`);
     console.log(` Serving ${client.guilds.cache.size} guilds`);
-    
+
     // Set activity
-    client.user?.setActivity('for nukes 🔒', { type: 3 }); // Watching
+    client.user?.setActivity('Protecting servers from nukes 🔒', { type: 3 }); // Watching
 
     // Cache invites for all guilds using InviteService
     console.log('🔄 Caching invites for all guilds...');
@@ -245,12 +250,12 @@ function setupEventHandlers() {
         console.error(`Failed to cache invites for guild ${guildId}:`, error);
       }
     }
-    console.log(`<:tcet_tick:1437995479567962184> Cached invites for ${cachedGuilds}/${client.guilds.cache.size} guilds`);
+    console.log(`✔ Cached invites for ${cachedGuilds}/${client.guilds.cache.size} guilds`);
 
     // Initialize AutoModMonitor for 24/7 message monitoring
     const { AutoModMonitor } = await import('./modules/AutoModMonitor');
-    autoModMonitor = new AutoModMonitor(client, autoModService, moderationService);
-    console.log('<:tcet_tick:1437995479567962184> AutoMod Monitor started - watching all channels 24/7');
+    autoModMonitor = new AutoModMonitor(client, autoModService, moderationService, loggingService);
+    console.log('✔ AutoMod Monitor started - watching all channels 24/7');
 
     // Deploy commands
     await deployCommands();
@@ -262,9 +267,9 @@ function setupEventHandlers() {
   // Interaction handling
   client.on('interactionCreate', async interaction => {
     // Handle button and menu interactions from automod and other features
-    if (interaction.isButton() || interaction.isStringSelectMenu() || 
-        interaction.isUserSelectMenu() || interaction.isRoleSelectMenu() || 
-        interaction.isChannelSelectMenu()) {
+    if (interaction.isButton() || interaction.isStringSelectMenu() ||
+      interaction.isUserSelectMenu() || interaction.isRoleSelectMenu() ||
+      interaction.isChannelSelectMenu()) {
       // These interactions are handled within their respective command collectors
       // No global handler needed - they're already managed in command files
       return;
@@ -282,7 +287,7 @@ function setupEventHandlers() {
     if (interaction.inGuild() && command.data.default_member_permissions) {
       const member = interaction.member as any;
       const requiredPerms = BigInt(command.data.default_member_permissions);
-      
+
       if (!member.permissions.has(requiredPerms)) {
         // Silently ignore - no response
         return;
@@ -293,12 +298,12 @@ function setupEventHandlers() {
       await command.execute(interaction, services);
     } catch (error: any) {
       console.error(`Error executing command ${interaction.commandName}:`, error);
-      
+
       // Don't try to respond if interaction already handled or timed out
       if (error.code === 10062 || error.code === 40060) {
         return;
       }
-      
+
       const errorMessage = {
         content: '❌ An error occurred while executing this command.',
         ephemeral: true,
@@ -328,14 +333,17 @@ function setupEventHandlers() {
     const commandName = args.shift()?.toLowerCase();
     if (!commandName) return;
 
-    const command = commands.get(commandName);
+    let command = commands.get(commandName);
+    if (!command) {
+      command = commands.find((cmd: any) => cmd.prefixCommand?.aliases?.includes(commandName));
+    }
     if (!command) return;
 
     // Check permissions - silently ignore if user lacks permissions
     if (command.data.default_member_permissions) {
       const member = message.member!;
       const requiredPerms = BigInt(command.data.default_member_permissions);
-      
+
       if (!member.permissions.has(requiredPerms)) {
         // Silently ignore - no response
         return;
@@ -346,17 +354,35 @@ function setupEventHandlers() {
       // Create a pseudo-interaction object for prefix commands
       const { createPrefixInteraction } = await import('./utils/prefixCommand');
       const interaction = await createPrefixInteraction(message, prefix);
-      
+
       // Execute the command with the pseudo-interaction
       await command.execute(interaction as any, services);
     } catch (error: any) {
       console.error(`Error executing prefix command ${commandName}:`, error);
-      
+
       // Don't try to respond if interaction already handled or timed out
       if (error.code === 10062 || error.code === 40060) {
         return;
       }
-      
+
+      if (error.name === 'ValidationError') {
+        const help = {
+          name: command.data.name,
+          description: command.data.description,
+          permission: command.permission || 'None',
+          syntax: command.syntax || `!${command.data.name}`,
+          examples: command.example ? [command.example] : (command.examples || [`!${command.data.name}`])
+        };
+
+        const embed = createUsageEmbed(help);
+        try {
+          await message.reply({ embeds: [embed] });
+        } catch (replyError) {
+          console.error('Failed to send usage embed:', replyError);
+        }
+        return;
+      }
+
       try {
         await message.reply(`❌ ${error.message || 'An error occurred while executing this command.'}`);
       } catch (replyError) {
@@ -369,12 +395,12 @@ function setupEventHandlers() {
   client.on('guildCreate', async guild => {
     try {
       await inviteService.cacheGuildInvites(guild);
-      console.log(`<:tcet_tick:1437995479567962184> Cached invites for new guild: ${guild.name}`);
+      console.log(`✔ Cached invites for new guild: ${guild.name}`);
     } catch (error) {
       console.error(`Failed to cache invites for guild ${guild.id}:`, error);
     }
   });
-  
+
   // Update cache when invites are created or deleted
   client.on('inviteCreate', async invite => {
     try {
@@ -385,7 +411,7 @@ function setupEventHandlers() {
       console.error('Failed to update invite cache on create:', error);
     }
   });
-  
+
   client.on('inviteDelete', async invite => {
     try {
       if (invite.guild && 'invites' in invite.guild) {
@@ -401,7 +427,7 @@ function setupEventHandlers() {
     try {
       const db = DatabaseManager.getInstance();
       const config = await db.getWelcomeConfig(member.guild.id);
-      
+
       // Track invite info using InviteService
       let inviterInfo = '';
       let inviteData = {
@@ -410,17 +436,17 @@ function setupEventHandlers() {
         inviteCode: null as string | null,
         joinType: 'unknown' as 'invite' | 'vanity' | 'unknown' | 'oauth'
       };
-      
+
       try {
         // Fetch current invites
         const newInvites = await member.guild.invites.fetch();
-        
+
         // Find which invite was used
         inviteData = await inviteService.findUsedInvite(member.guild.id, newInvites);
-        
+
         // Update invite cache
         await inviteService.updateInviteCache(member.guild);
-        
+
         // Generate appropriate message based on join type
         if (inviteData.joinType === 'invite' && inviteData.inviterId && inviteData.inviterTag) {
           // Increment inviter's invite count
@@ -431,7 +457,7 @@ function setupEventHandlers() {
         } else {
           inviterInfo = `${member} has been invited via **unknown link**.`;
         }
-        
+
         // Store join data in database for leave tracking
         await inviteService.storeMemberJoin(
           member.guild.id,
@@ -450,14 +476,14 @@ function setupEventHandlers() {
         }
         inviterInfo = `${member} has been invited via **unknown link**.`;
       }
-      
+
       // Send welcome message if enabled
       if (config.welcomeChannelId && config.welcomeEnabled) {
         const welcomeChannel = member.guild.channels.cache.get(config.welcomeChannelId);
         if (welcomeChannel && welcomeChannel.isTextBased()) {
           // Use custom message if set, otherwise use invite tracking message
           const message = config.message || inviterInfo;
-          
+
           await welcomeChannel.send(message.replace(/{user}/g, member.toString()).replace(/{server}/g, member.guild.name));
         }
       }
@@ -470,14 +496,14 @@ function setupEventHandlers() {
     try {
       const db = DatabaseManager.getInstance();
       const config = await db.getWelcomeConfig(member.guild.id);
-      
+
       if (config.leaveChannelId && config.leaveEnabled) {
         const leaveChannel = member.guild.channels.cache.get(config.leaveChannelId);
         if (leaveChannel && leaveChannel.isTextBased()) {
           // Get join info from database
           const joinInfo = await inviteService.getMemberJoinData(member.guild.id, member.id);
           let leaveMessage = '';
-          
+
           if (joinInfo) {
             if (joinInfo.joinType === 'invite' && joinInfo.inviterId && joinInfo.inviterTag) {
               // Decrement inviter's invite count (person left)
@@ -492,17 +518,17 @@ function setupEventHandlers() {
             } else {
               leaveMessage = `${member.user.tag} left the server. They joined using **unknown link**.`;
             }
-            
+
             // Clean up stored join info
             await inviteService.deleteMemberJoinData(member.guild.id, member.id);
           } else {
             // No join info stored (member joined before bot or tracking failed)
             leaveMessage = `${member.user.tag} left the server. They joined using **unknown link**.`;
           }
-          
+
           // Use custom message if set, otherwise use the generated leave message
           const finalMessage = config.leaveMessage || leaveMessage;
-          
+
           await leaveChannel.send(finalMessage.replace(/{user}/g, member.user.tag).replace(/{server}/g, member.guild.name));
         }
       }
@@ -513,15 +539,15 @@ function setupEventHandlers() {
 
   // Error handling
   client.on('error', error => {
-    console.error('❌ Discord client error:', error);
+    console.error('✖ Discord client error:', error);
   });
 
   process.on('unhandledRejection', error => {
-    console.error('❌ Unhandled promise rejection:', error);
+    console.error('✖ Unhandled promise rejection:', error);
   });
 
   process.on('uncaughtException', error => {
-    console.error('❌ Uncaught exception:', error);
+    console.error('✖ Uncaught exception:', error);
     process.exit(1);
   });
 }
@@ -560,7 +586,28 @@ function startPeriodicTasks() {
     }
   }, 12 * 60 * 60 * 1000); // 12 hours
 
-  console.log('<:tcet_tick:1437995479567962184> Periodic tasks started');
+  // Update server stats every 10 minutes
+  setInterval(async () => {
+    try {
+      console.log('🔄 Updating server stats...');
+      let totalUpdated = 0;
+      for (const [guildId, guild] of client.guilds.cache) {
+        try {
+          const { updated } = await refreshCommand.updateServerStats(guild);
+          totalUpdated += updated;
+        } catch (error) {
+          console.error(`Failed to update stats for guild ${guildId}:`, error);
+        }
+      }
+      if (totalUpdated > 0) {
+        console.log(`📊 Updated ${totalUpdated} stats panels`);
+      }
+    } catch (error) {
+      console.error('Failed to update server stats:', error);
+    }
+  }, 10 * 60 * 1000); // 10 minutes
+
+  console.log('✔ Periodic tasks started');
 }
 
 // Graceful shutdown
@@ -571,21 +618,21 @@ async function shutdown(signal: string) {
     // Destroy AutoModMonitor
     if (autoModMonitor) {
       autoModMonitor.destroy();
-      console.log('<:tcet_tick:1437995479567962184> AutoMod Monitor destroyed');
+      console.log('✔ AutoMod Monitor destroyed');
     }
 
     // Destroy Discord client
     client.destroy();
-    console.log('<:tcet_tick:1437995479567962184> Discord client destroyed');
+    console.log('✔ Discord client destroyed');
 
     // Disconnect Prisma
     await prisma.$disconnect();
-    console.log('<:tcet_tick:1437995479567962184> Database disconnected');
+    console.log('✔ Database disconnected');
 
     console.log('👋 Shutdown complete');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+    console.error('✖ Error during shutdown:', error);
     process.exit(1);
   }
 }
@@ -601,7 +648,7 @@ async function main() {
 
     // Test database connection
     await prisma.$connect();
-    console.log('<:tcet_tick:1437995479567962184> Database connected');
+    console.log('✔ Database connected');
 
     // Register commands
     registerCommands();
@@ -612,7 +659,7 @@ async function main() {
     // Login to Discord
     await client.login(process.env.DISCORD_TOKEN);
   } catch (error) {
-    console.error('❌ Failed to start bot:', error);
+    console.error('✖ Failed to start bot:', error);
     process.exit(1);
   }
 }

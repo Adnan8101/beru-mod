@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder
 } from 'discord.js';
 import { SlashCommand, PrefixCommand } from '../../types';
@@ -26,24 +26,24 @@ const slashCommand: SlashCommand = {
       const welcomeConfig = await db.getWelcomeConfig(guild.id);
 
       if (!welcomeConfig || !welcomeConfig.welcomeChannelId) {
-        await interaction.reply({ 
-          content: '❌ Welcome channel not setup! Use `/welcome` to set a channel first.', 
-          ephemeral: true 
+        await interaction.reply({
+          content: '❌ Welcome channel not setup! Use `/welcome` to set a channel first.',
+          ephemeral: true
         });
         return;
       }
 
       const welcomeChannel = await guild.channels.fetch(welcomeConfig.welcomeChannelId).catch(() => null);
       if (!welcomeChannel || !welcomeChannel.isTextBased()) {
-        await interaction.reply({ 
-          content: '❌ Welcome channel not found or is not a text channel!', 
-          ephemeral: true 
+        await interaction.reply({
+          content: '❌ Welcome channel not found or is not a text channel!',
+          ephemeral: true
         });
         return;
       }
 
       // Simulate invite data for the test
-      const inviteData = db.getInviteData(guild.id, user.id);
+      const inviteData = await db.getInviteData(guild.id, user.id);
       let inviterName = 'UnKnown';
       let newInviteCount = 1;
 
@@ -51,28 +51,28 @@ const slashCommand: SlashCommand = {
         const inviter = await guild.members.fetch(inviteData.inviterId).catch(() => null);
         if (inviter) {
           inviterName = inviter.user.username;
-          newInviteCount = db.getUserInviteCount(guild.id, inviteData.inviterId) + 1;
+          newInviteCount = (await db.getUserInviteCount(guild.id, inviteData.inviterId)) + 1;
         }
       }
 
       // Check if it was a vanity invite
       const isVanity = inviteData?.isVanity || false;
-      const welcomeMessage = isVanity 
+      const welcomeMessage = isVanity
         ? `${user.toString()} has joined using the **vanity invite** and now has ${newInviteCount} invites.`
         : `${user.toString()} has been invited by **${inviterName}** and has now ${newInviteCount} invites.`;
 
       // Send the test welcome message
       await welcomeChannel.send(welcomeMessage);
 
-      await interaction.reply({ 
-        content: `<:tcet_tick:1437995479567962184> Test welcome message sent to ${welcomeChannel.toString()}!`, 
-        ephemeral: true 
+      await interaction.reply({
+        content: `<:tcet_tick:1437995479567962184> Test welcome message sent to ${welcomeChannel.toString()}!`,
+        ephemeral: true
       });
     } catch (error) {
       console.error('Error sending test welcome:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while sending the test welcome message.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while sending the test welcome message.',
+        ephemeral: true
       });
     }
   },
@@ -110,7 +110,7 @@ const prefixCommand: PrefixCommand = {
       }
 
       // Simulate invite data for the test
-      const inviteData = db.getInviteData(guild.id, user.id);
+      const inviteData = await db.getInviteData(guild.id, user.id);
       let inviterName = 'UnKnown';
       let newInviteCount = 1;
 
@@ -118,13 +118,13 @@ const prefixCommand: PrefixCommand = {
         const inviter = await guild.members.fetch(inviteData.inviterId).catch(() => null);
         if (inviter) {
           inviterName = inviter.user.username;
-          newInviteCount = db.getUserInviteCount(guild.id, inviteData.inviterId) + 1;
+          newInviteCount = (await db.getUserInviteCount(guild.id, inviteData.inviterId)) + 1;
         }
       }
 
       // Check if it was a vanity invite
       const isVanity = inviteData?.isVanity || false;
-      const welcomeMessage = isVanity 
+      const welcomeMessage = isVanity
         ? `${user.toString()} has joined using the **vanity invite** and now has ${newInviteCount} invites.`
         : `${user.toString()} has been invited by **${inviterName}** and has now ${newInviteCount} invites.`;
 

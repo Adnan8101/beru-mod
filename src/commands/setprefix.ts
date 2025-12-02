@@ -11,6 +11,7 @@ import {
 import { EmbedColors } from '../types';
 import { CustomEmojis } from '../utils/emoji';
 import { GuildConfigService } from '../services/GuildConfigService';
+import { createErrorEmbed } from '../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('setprefix')
@@ -24,6 +25,11 @@ export const data = new SlashCommandBuilder()
       .setMaxLength(5)
   );
 
+export const category = 'moderation';
+export const syntax = '/setprefix <prefix>';
+export const example = '/setprefix !';
+export const permission = 'Manage Guild';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { guildConfigService: GuildConfigService }
@@ -33,10 +39,8 @@ export async function execute(
 
   // Validate prefix
   if (prefix.length > 5) {
-    await interaction.reply({
-      content: '❌ Prefix must be 5 characters or less.',
-      ephemeral: true,
-    });
+    const errorEmbed = createErrorEmbed('Prefix must be 5 characters or less.');
+    await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
 
@@ -44,7 +48,7 @@ export async function execute(
   await services.guildConfigService.setPrefix(guild.id, prefix);
 
   const embed = new EmbedBuilder()
-    .setTitle('<:tcet_tick:1437995479567962184> Prefix Updated')
+    .setTitle(`${CustomEmojis.TICK} Prefix Updated`)
     .setDescription(`Command prefix has been set to \`${prefix}\``)
     .setColor(EmbedColors.SUCCESS)
     .addFields(

@@ -11,6 +11,7 @@ import {
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 import { ModerationService } from '../../services/ModerationService';
+import { createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('checkwarn')
@@ -19,9 +20,14 @@ export const data = new SlashCommandBuilder()
   .addUserOption(option =>
     option
       .setName('user')
-      .setDescription('The member to check')
+      .setDescription('The user to check')
       .setRequired(true)
   );
+
+export const category = 'moderation';
+export const syntax = '!checkwarn <user>';
+export const example = '!checkwarn @user';
+export const permission = 'Moderate Members';
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
@@ -36,15 +42,16 @@ export async function execute(
   const warns = await services.moderationService.getWarns(guild.id, user.id);
 
   if (warns.length === 0) {
-    await interaction.editReply({
-      content: `${user.tag} has no warnings.`,
-    });
+    const embed = new EmbedBuilder()
+      .setColor(EmbedColors.INFO)
+      .setDescription(`${CustomEmojis.TICK} ${user.tag} has no warnings.`);
+    await interaction.editReply({ embeds: [embed] });
     return;
   }
 
   // Create embed
   const embed = new EmbedBuilder()
-    .setTitle(`⚠️ Warnings for ${user.tag}`)
+    .setTitle(`${CustomEmojis.CAUTION} Warnings for ${user.tag}`)
     .setDescription(`Total Warnings: **${warns.length}**`)
     .setColor(EmbedColors.WARNING)
     .setThumbnail(user.displayAvatarURL())

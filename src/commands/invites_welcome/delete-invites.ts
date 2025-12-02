@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   PermissionFlagsBits
 } from 'discord.js';
@@ -26,11 +26,14 @@ const slashCommand: SlashCommand = {
         .setDescription('Type of invites to remove')
         .setRequired(false)
         .addChoices(
-          { name: 'Normal Invites', value: 'normal' },
           { name: 'Bonus Invites', value: 'bonus' },
           { name: 'Both (Normal first)', value: 'both' }
         ))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  category: 'invites_welcome',
+  syntax: '/delete-invites <user> <invites> [type]',
+  permission: 'Administrator',
+  example: '/delete-invites @user 3 normal',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const targetUser = interaction.options.getUser('user', true);
@@ -45,15 +48,15 @@ const slashCommand: SlashCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      
-      const currentNormalInvites = db.getUserInviteCount(guild.id, targetUser.id);
-      const currentBonusInvites = db.getUserBonusInvites(guild.id, targetUser.id);
+
+      const currentNormalInvites = await db.getUserInviteCount(guild.id, targetUser.id);
+      const currentBonusInvites = await db.getUserBonusInvites(guild.id, targetUser.id);
       const totalInvites = currentNormalInvites + currentBonusInvites;
 
       if (totalInvites < invitesToRemove && inviteType === 'both') {
-        await interaction.reply({ 
-          content: `❌ Cannot remove ${invitesToRemove} invites. User only has ${totalInvites} total invites (${currentNormalInvites} normal, ${currentBonusInvites} bonus).`, 
-          ephemeral: true 
+        await interaction.reply({
+          content: `❌ Cannot remove ${invitesToRemove} invites. User only has ${totalInvites} total invites (${currentNormalInvites} normal, ${currentBonusInvites} bonus).`,
+          ephemeral: true
         });
         return;
       }
@@ -64,37 +67,37 @@ const slashCommand: SlashCommand = {
 
       if (inviteType === 'normal') {
         if (currentNormalInvites < invitesToRemove) {
-          await interaction.reply({ 
-            content: `❌ Cannot remove ${invitesToRemove} normal invites. User only has ${currentNormalInvites} normal invites.`, 
-            ephemeral: true 
+          await interaction.reply({
+            content: `❌ Cannot remove ${invitesToRemove} normal invites. User only has ${currentNormalInvites} normal invites.`,
+            ephemeral: true
           });
           return;
         }
-        normalRemoved = db.removeNormalInvites(guild.id, targetUser.id, invitesToRemove);
+        normalRemoved = await db.removeNormalInvites(guild.id, targetUser.id, invitesToRemove);
       } else if (inviteType === 'bonus') {
         if (currentBonusInvites < invitesToRemove) {
-          await interaction.reply({ 
-            content: `❌ Cannot remove ${invitesToRemove} bonus invites. User only has ${currentBonusInvites} bonus invites.`, 
-            ephemeral: true 
+          await interaction.reply({
+            content: `❌ Cannot remove ${invitesToRemove} bonus invites. User only has ${currentBonusInvites} bonus invites.`,
+            ephemeral: true
           });
           return;
         }
-        db.removeBonusInvites(guild.id, targetUser.id, invitesToRemove);
+        await db.removeBonusInvites(guild.id, targetUser.id, invitesToRemove);
         bonusRemoved = invitesToRemove;
       } else if (inviteType === 'both') {
         let remaining = invitesToRemove;
-        
+
         // Remove normal invites first
         if (currentNormalInvites > 0) {
           const normalToRemove = Math.min(remaining, currentNormalInvites);
-          normalRemoved = db.removeNormalInvites(guild.id, targetUser.id, normalToRemove);
+          normalRemoved = await db.removeNormalInvites(guild.id, targetUser.id, normalToRemove);
           remaining -= normalRemoved;
         }
-        
+
         // Remove bonus invites if needed
         if (remaining > 0 && currentBonusInvites > 0) {
           const bonusToRemove = Math.min(remaining, currentBonusInvites);
-          db.removeBonusInvites(guild.id, targetUser.id, bonusToRemove);
+          await db.removeBonusInvites(guild.id, targetUser.id, bonusToRemove);
           bonusRemoved = bonusToRemove;
         }
       }
@@ -119,9 +122,9 @@ const slashCommand: SlashCommand = {
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error removing invites:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while removing invites.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while removing invites.',
+        ephemeral: true
       });
     }
   },
@@ -175,9 +178,9 @@ const prefixCommand: PrefixCommand = {
       }
 
       const db = DatabaseManager.getInstance();
-      
-      const currentNormalInvites = db.getUserInviteCount(guild.id, member.id);
-      const currentBonusInvites = db.getUserBonusInvites(guild.id, member.id);
+
+      const currentNormalInvites = await db.getUserInviteCount(guild.id, member.id);
+      const currentBonusInvites = await db.getUserBonusInvites(guild.id, member.id);
       const totalInvites = currentNormalInvites + currentBonusInvites;
 
       if (totalInvites < invitesToRemove && inviteType === 'both') {
@@ -193,28 +196,28 @@ const prefixCommand: PrefixCommand = {
           await message.reply(`❌ Cannot remove ${invitesToRemove} normal invites. User only has ${currentNormalInvites} normal invites.`);
           return;
         }
-        normalRemoved = db.removeNormalInvites(guild.id, member.id, invitesToRemove);
+        normalRemoved = await db.removeNormalInvites(guild.id, member.id, invitesToRemove);
       } else if (inviteType === 'bonus') {
         if (currentBonusInvites < invitesToRemove) {
           await message.reply(`❌ Cannot remove ${invitesToRemove} bonus invites. User only has ${currentBonusInvites} bonus invites.`);
           return;
         }
-        db.removeBonusInvites(guild.id, member.id, invitesToRemove);
+        await db.removeBonusInvites(guild.id, member.id, invitesToRemove);
         bonusRemoved = invitesToRemove;
       } else if (inviteType === 'both') {
         let remaining = invitesToRemove;
-        
+
         // Remove normal invites first
         if (currentNormalInvites > 0) {
           const normalToRemove = Math.min(remaining, currentNormalInvites);
-          normalRemoved = db.removeNormalInvites(guild.id, member.id, normalToRemove);
+          normalRemoved = await db.removeNormalInvites(guild.id, member.id, normalToRemove);
           remaining -= normalRemoved;
         }
-        
+
         // Remove bonus invites if needed
         if (remaining > 0 && currentBonusInvites > 0) {
           const bonusToRemove = Math.min(remaining, currentBonusInvites);
-          db.removeBonusInvites(guild.id, member.id, bonusToRemove);
+          await db.removeBonusInvites(guild.id, member.id, bonusToRemove);
           bonusRemoved = bonusToRemove;
         }
       }

@@ -17,6 +17,7 @@ import { canModerate, botCanModerate } from '../../utils/moderation';
 import { ModerationService } from '../../services/ModerationService';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
+import { createErrorEmbed, createSuccessEmbed, createModerationEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('quarantine')
@@ -25,17 +26,17 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(subcommand =>
     subcommand
       .setName('setup')
-      .setDescription('Setup quarantine system')
+      .setDescription('Setup quarantine role and channel')
       .addRoleOption(option =>
         option
           .setName('role')
-          .setDescription('Role to assign when quarantined')
+          .setDescription('Quarantine role')
           .setRequired(true)
       )
       .addChannelOption(option =>
         option
           .setName('channel')
-          .setDescription('Channel quarantined users can access')
+          .setDescription('Quarantine channel')
           .setRequired(true)
           .addChannelTypes(ChannelType.GuildText)
       )
@@ -118,17 +119,15 @@ async function handleSetup(
 
   // Validate role
   if (role.id === guild.roles.everyone.id) {
-    await interaction.editReply({
-      content: '❌ Cannot use @everyone role for quarantine.',
-    });
+    const errorEmbed = createErrorEmbed('Cannot use @everyone role for quarantine.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   const botMember = guild.members.me!;
   if (role.position >= botMember.roles.highest.position) {
-    await interaction.editReply({
-      content: '❌ Quarantine role must be below my highest role.',
-    });
+    const errorEmbed = createErrorEmbed('Quarantine role must be below my highest role.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -139,11 +138,11 @@ async function handleSetup(
   try {
     // Get all channels
     const channels = await guild.channels.fetch();
-    
+
     // Hide all channels from quarantine role
     for (const [channelId, guildChannel] of channels) {
       if (!guildChannel) continue;
-      
+
       try {
         if ('permissionOverwrites' in guildChannel) {
           await guildChannel.permissionOverwrites.create(role.id, {
@@ -168,7 +167,7 @@ async function handleSetup(
     }
 
     const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> Quarantine System Configured')
+      .setTitle(`${CustomEmojis.TICK} Quarantine System Configured`)
       .setDescription('Quarantine system has been set up successfully with automatic permissions.')
       .setColor(EmbedColors.SUCCESS)
       .addFields(
@@ -186,9 +185,8 @@ async function handleSetup(
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `⚠️ Configuration saved but failed to set permissions: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Configuration saved but failed to set permissions: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -210,9 +208,8 @@ async function handleAdd(
   // Get quarantine config
   const config = await services.moderationService.getQuarantineConfig(guild.id);
   if (!config) {
-    await interaction.editReply({
-      content: '❌ Quarantine system is not configured. Use `/quarantine setup` first.',
-    });
+    const errorEmbed = createErrorEmbed('Quarantine system is not configured. Use `/quarantine setup` first.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -230,25 +227,22 @@ async function handleAdd(
   // Check permissions
   const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.ManageRoles);
   if (!moderatorCheck.allowed) {
-    await interaction.editReply({
-      content: `❌ ${moderatorCheck.reason}`,
-    });
+    const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   const botCheck = botCanModerate(guild.members.me!, target, PermissionFlagsBits.ManageRoles);
   if (!botCheck.allowed) {
-    await interaction.editReply({
-      content: `❌ ${botCheck.reason}`,
-    });
+    const errorEmbed = createErrorEmbed(botCheck.reason || 'I cannot moderate this user.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check if already quarantined
   if (target.roles.cache.has(config.roleId)) {
-    await interaction.editReply({
-      content: '❌ This member is already quarantined.',
-    });
+    const errorEmbed = createErrorEmbed('This member is already quarantined.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -256,16 +250,12 @@ async function handleAdd(
   try {
     await target.roles.add(config.roleId, reason);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> Member Quarantined')
-      .setDescription(`${target.user.tag} has been quarantined.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: 'User', value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Quarantined',
+      target.user,
+      interaction.user,
+      reason
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -287,9 +277,8 @@ async function handleAdd(
       caseNumber: modCase.caseNumber,
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to quarantine member: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to quarantine member: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -310,9 +299,8 @@ async function handleRemove(
   // Get quarantine config
   const config = await services.moderationService.getQuarantineConfig(guild.id);
   if (!config) {
-    await interaction.editReply({
-      content: '❌ Quarantine system is not configured.',
-    });
+    const errorEmbed = createErrorEmbed('Quarantine system is not configured.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -329,9 +317,8 @@ async function handleRemove(
 
   // Check if quarantined
   if (!target.roles.cache.has(config.roleId)) {
-    await interaction.editReply({
-      content: '❌ This member is not quarantined.',
-    });
+    const errorEmbed = createErrorEmbed('This member is not quarantined.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -339,16 +326,12 @@ async function handleRemove(
   try {
     await target.roles.remove(config.roleId, reason);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> Member Unquarantined')
-      .setDescription(`${target.user.tag} has been removed from quarantine.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: 'User', value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Unquarantined',
+      target.user,
+      interaction.user,
+      reason
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -370,9 +353,8 @@ async function handleRemove(
       caseNumber: modCase.caseNumber,
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to remove quarantine: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to remove quarantine: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -386,9 +368,8 @@ async function handleConfig(
   const config = await services.moderationService.getQuarantineConfig(guild.id);
 
   if (!config) {
-    await interaction.editReply({
-      content: '❌ Quarantine system is not configured. Use `/quarantine setup` to configure it.',
-    });
+    const errorEmbed = createErrorEmbed('Quarantine system is not configured. Use `/quarantine setup` to configure it.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 

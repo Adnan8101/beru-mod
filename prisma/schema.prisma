@@ -10,10 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===========================
-// Anti-Nuke Configuration
-// ===========================
-
 model AntiNukeConfig {
   id          String   @id @default(cuid())
   guildId     String   @unique @map("guild_id")
@@ -131,9 +127,7 @@ model ModerationCase {
   @@index([guildId, createdAt])
 }
 
-// ===========================
-// Backup/Recovery System
-// ===========================
+
 
 model RoleBackup {
   id          String   @id @default(cuid())
@@ -388,7 +382,34 @@ model InviteTracker {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@unique([guildId, userId])
-  @@map("invite_tracker")
   @@index([guildId])
   @@index([userId])
+}
+
+// ===========================
+// Server Stats System
+// ===========================
+
+model ServerStatsPanel {
+  id              String   @id @default(cuid())
+  guildId         String   @map("guild_id")
+  panelName       String   @map("panel_name")
+  channelType     String   @map("channel_type") // vc or text
+  categoryId      String   @map("category_id")
+  
+  // Channel IDs
+  totalChannelId  String   @map("total_channel_id")
+  usersChannelId  String   @map("users_channel_id")
+  botsChannelId   String   @map("bots_channel_id")
+  onlineChannelId String?  @map("online_channel_id")
+  idleChannelId   String?  @map("idle_channel_id")
+  dndChannelId    String?  @map("dnd_channel_id")
+  offlineChannelId String? @map("offline_channel_id")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([guildId, panelName])
+  @@map("server_stats_panels")
+  @@index([guildId])
 }

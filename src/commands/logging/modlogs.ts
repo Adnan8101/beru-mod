@@ -11,6 +11,7 @@ import {
 } from 'discord.js';
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
+import { createErrorEmbed, createSuccessEmbed, createInfoEmbed } from '../../utils/embedHelpers';
 
 interface ModLogsServices {
   prisma: any;
@@ -36,9 +37,7 @@ export async function execute(
 
   // Verify it's a text channel
   if (!channel.isTextBased()) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Please select a text channel for moderation logs.`);
+    const errorEmbed = createErrorEmbed('Please select a text channel for moderation logs.');
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
@@ -46,11 +45,7 @@ export async function execute(
   // Check bot permissions in that channel
   const permissions = channel.permissionsFor(interaction.guild!.members.me!);
   if (!permissions?.has(PermissionFlagsBits.SendMessages) || !permissions?.has(PermissionFlagsBits.EmbedLinks)) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(
-        `${CustomEmojis.CROSS} I need **Send Messages** and **Embed Links** permissions in ${channel}!`
-      );
+    const errorEmbed = createErrorEmbed(`I need **Send Messages** and **Embed Links** permissions in ${channel}!`);
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
@@ -67,8 +62,7 @@ export async function execute(
     },
   });
 
-  const embed = new EmbedBuilder()
-    .setColor(EmbedColors.SUCCESS)
+  const embed = createSuccessEmbed('Moderation Logs Enabled')
     .setTitle(`${CustomEmojis.TICK} Moderation Logs Enabled`)
     .setDescription(
       `Moderation actions will now be logged to ${channel}!\n\n` +
@@ -87,10 +81,7 @@ export async function execute(
   await interaction.reply({ embeds: [embed] });
 
   // Send test message to log channel
-  const testEmbed = new EmbedBuilder()
-    .setColor(EmbedColors.INFO)
-    .setTitle(`${CustomEmojis.STAFF} Moderation Logging Activated`)
-    .setDescription(`Moderation logging has been enabled by ${interaction.user}.\n\nThis channel will receive moderation action logs.`)
+  const testEmbed = createInfoEmbed(`${CustomEmojis.STAFF} Moderation Logging Activated`, `Moderation logging has been enabled by ${interaction.user}.\n\nThis channel will receive moderation action logs.`)
     .setTimestamp();
 
   await channel.send({ embeds: [testEmbed] });

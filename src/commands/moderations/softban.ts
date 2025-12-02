@@ -13,6 +13,7 @@ import { CustomEmojis } from '../../utils/emoji';
 import { canModerate, botCanModerate, parseDuration, formatDuration } from '../../utils/moderation';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('softban')
@@ -45,6 +46,11 @@ export const data = new SlashCommandBuilder()
       .setMaxValue(7)
   );
 
+export const category = 'moderation';
+export const syntax = '!softban <user> [delete_days] [reason]';
+export const example = '!softban @user 1 Spamming';
+export const permission = 'Ban Members';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { caseService: CaseService; loggingService: LoggingService }
@@ -61,9 +67,8 @@ export async function execute(
   // Parse duration
   const duration = parseDuration(durationStr);
   if (!duration) {
-    await interaction.editReply({
-      content: '❌ Invalid duration format. Use formats like: 1h, 2d, 7d',
-    });
+    const errorEmbed = createErrorEmbed('Invalid duration format. Use formats like: 1h, 2d, 7d');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -75,17 +80,15 @@ export async function execute(
     // Check permissions
     const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.BanMembers);
     if (!moderatorCheck.allowed) {
-      await interaction.editReply({
-        content: `❌ ${moderatorCheck.reason}`,
-      });
+      const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
+      await interaction.editReply({ embeds: [errorEmbed] });
       return;
     }
 
     const botCheck = botCanModerate(guild.members.me!, target, PermissionFlagsBits.BanMembers);
     if (!botCheck.allowed) {
-      await interaction.editReply({
-        content: `❌ ${botCheck.reason}`,
-      });
+      const errorEmbed = createErrorEmbed(botCheck.reason || 'I cannot moderate this user.');
+      await interaction.editReply({ embeds: [errorEmbed] });
       return;
     }
   } catch {
@@ -109,19 +112,17 @@ export async function execute(
       }
     }, duration);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> User Softbanned')
-      .setDescription(`${user.tag} has been temporarily banned.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: 'User', value: `${user.tag} (${user.id})`, inline: true },
-        { name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
+    const embed = createModerationEmbed(
+      'Softbanned',
+      user,
+      interaction.user,
+      reason,
+      [
         { name: 'Duration', value: formatDuration(duration), inline: true },
-        { name: 'Reason', value: reason, inline: false },
         { name: 'Messages Deleted', value: `${deleteDays} day${deleteDays !== 1 ? 's' : ''}`, inline: true }
-      )
-      .setFooter({ text: `Will be automatically unbanned after ${formatDuration(duration)}` })
-      .setTimestamp();
+      ]
+    );
+    embed.setFooter({ text: `Will be automatically unbanned after ${formatDuration(duration)}` });
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -145,8 +146,7 @@ export async function execute(
       duration: formatDuration(duration),
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to softban user: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to softban user: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

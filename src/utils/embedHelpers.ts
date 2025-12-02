@@ -1,8 +1,4 @@
-/**
- * Command Help Embed Generator
- */
-
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, User } from 'discord.js';
 import { EmbedColors } from '../types';
 import { CustomEmojis } from './emoji';
 
@@ -31,25 +27,66 @@ export function createHelpEmbed(help: CommandHelp): EmbedBuilder {
     .setFooter({ text: 'Use @ to mention users/roles' });
 }
 
-export function createSuccessEmbed(title: string, description: string): EmbedBuilder {
+export function createSuccessEmbed(description: string): EmbedBuilder {
   return new EmbedBuilder()
     .setColor(EmbedColors.SUCCESS)
-    .setTitle(`${CustomEmojis.TICK} ${title}`)
-    .setDescription(description)
-    .setTimestamp();
+    .setDescription(`${CustomEmojis.TICK} ${description}`);
 }
 
 export function createErrorEmbed(description: string): EmbedBuilder {
   return new EmbedBuilder()
     .setColor(EmbedColors.ERROR)
-    .setDescription(`${CustomEmojis.CROSS} ${description}`)
-    .setTimestamp();
+    .setDescription(`${CustomEmojis.CROSS} ${description}`);
 }
 
-export function createWarningEmbed(title: string, description: string): EmbedBuilder {
+export function createWarningEmbed(description: string): EmbedBuilder {
   return new EmbedBuilder()
     .setColor(EmbedColors.WARNING)
-    .setTitle(`${CustomEmojis.CAUTION} ${title}`)
-    .setDescription(description)
-    .setTimestamp();
+    .setDescription(`${CustomEmojis.CAUTION} ${description}`);
+}
+
+export function createInfoEmbed(title: string, description: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(EmbedColors.INFO)
+    .setTitle(title)
+    .setDescription(description);
+}
+
+export function createModerationEmbed(
+  action: string,
+  target: User,
+  moderator: User,
+  reason: string,
+  fields?: { name: string; value: string; inline?: boolean }[]
+): EmbedBuilder {
+  let description = `${CustomEmojis.TICK} ${action} ${target}`;
+
+  // Check for duration or other relevant info in fields
+  if (fields) {
+    const durationField = fields.find(f => f.name.toLowerCase().includes('duration'));
+    if (durationField) {
+      description += ` for ${durationField.value}`;
+    }
+
+    const messagesField = fields.find(f => f.name.toLowerCase().includes('messages deleted'));
+    if (messagesField) {
+      description += ` and deleted ${messagesField.value}`;
+    }
+  }
+
+  return new EmbedBuilder()
+    .setColor(EmbedColors.SUCCESS)
+    .setDescription(description);
+}
+
+export function createUsageEmbed(help: CommandHelp): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(0x2b2d31)
+    .addFields(
+      { name: 'Name', value: help.name, inline: true },
+      { name: 'Description', value: help.description, inline: true },
+      { name: 'Permission Required', value: help.permission, inline: false },
+      { name: 'Syntax', value: `\`${help.syntax}\``, inline: false },
+      { name: 'Example', value: help.examples.map(ex => `\`${ex}\``).join('\n'), inline: false }
+    );
 }

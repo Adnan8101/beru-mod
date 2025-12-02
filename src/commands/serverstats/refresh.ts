@@ -1,8 +1,8 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
+  PermissionFlagsBits,
   EmbedBuilder,
   GuildMember,
   VoiceChannel,
@@ -15,38 +15,51 @@ import { DatabaseManager } from '../../utils/DatabaseManager';
 
 async function updateServerStats(guild: Guild): Promise<{ updated: number; errors: string[] }> {
   const db = DatabaseManager.getInstance();
-  const panels = db.getPanels(guild.id);
-  
+  const panels = await db.getPanels(guild.id);
+
   let updated = 0;
   const errors: string[] = [];
 
   for (const panel of panels) {
     try {
       await guild.members.fetch();
+      await guild.members.fetch({ withPresences: true });
 
       const totalMembers = guild.memberCount;
       const users = guild.members.cache.filter((member: GuildMember) => !member.user.bot).size;
       const bots = guild.members.cache.filter((member: GuildMember) => member.user.bot).size;
 
-      // Update channels
-      const totalChannel = await guild.channels.fetch(panel.totalChannelId);
-      const usersChannel = await guild.channels.fetch(panel.usersChannelId);
-      const botsChannel = await guild.channels.fetch(panel.botsChannelId);
+      // Status counts
+      const online = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'online').size;
+      const idle = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'idle').size;
+      const dnd = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'dnd').size;
 
-      if (totalChannel && usersChannel && botsChannel) {
-        if (panel.channelType === 'vc') {
-          await (totalChannel as VoiceChannel).setName(`Total: ${totalMembers}`);
-          await (usersChannel as VoiceChannel).setName(`Users: ${users}`);
-          await (botsChannel as VoiceChannel).setName(`Bots: ${bots}`);
-        } else {
-          await (totalChannel as TextChannel).setName(`total-${totalMembers}`);
-          await (usersChannel as TextChannel).setName(`users-${users}`);
-          await (botsChannel as TextChannel).setName(`bots-${bots}`);
+      // Update channels
+      const updateChannel = async (id: string, name: string) => {
+        if (!id) return;
+        try {
+          const channel = await guild.channels.fetch(id);
+          if (channel) {
+            if (panel.channelType === 'vc') {
+              await (channel as VoiceChannel).setName(name);
+            } else {
+              await (channel as TextChannel).setName(name);
+            }
+          }
+        } catch (e) {
+          // Ignore missing channels
         }
-        updated++;
-      } else {
-        errors.push(`Some channels for panel "${panel.panelName}" could not be found`);
-      }
+      };
+
+      await updateChannel(panel.totalChannelId, panel.channelType === 'vc' ? `Total: ${totalMembers}` : `total-${totalMembers}`);
+      await updateChannel(panel.usersChannelId, panel.channelType === 'vc' ? `Users: ${users}` : `users-${users}`);
+      await updateChannel(panel.botsChannelId, panel.channelType === 'vc' ? `Bots: ${bots}` : `bots-${bots}`);
+
+      if (panel.onlineChannelId) await updateChannel(panel.onlineChannelId, panel.channelType === 'vc' ? `🟢 Online: ${online}` : `online-${online}`);
+      if (panel.idleChannelId) await updateChannel(panel.idleChannelId, panel.channelType === 'vc' ? `🌙 Idle: ${idle}` : `idle-${idle}`);
+      if (panel.dndChannelId) await updateChannel(panel.dndChannelId, panel.channelType === 'vc' ? `⛔ DND: ${dnd}` : `dnd-${dnd}`);
+
+      updated++;
 
     } catch (error) {
       errors.push(`Error updating panel "${panel.panelName}": ${error}`);

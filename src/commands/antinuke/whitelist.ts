@@ -16,7 +16,7 @@ import {
   MessageComponentInteraction,
 } from 'discord.js';
 import { WhitelistService } from '../../services/WhitelistService';
-import { WhitelistCategory, EmbedColors } from '../../types';
+import { WhitelistCategory, EmbedColors, SlashCommand } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 
 export const data = new SlashCommandBuilder()
@@ -188,12 +188,38 @@ export const data = new SlashCommandBuilder()
       )
   );
 
+export const slashCommand: SlashCommand = {
+  data: data,
+  execute: execute,
+  category: 'antinuke',
+  syntax: '/whitelist <add_role|add_user|remove_role|remove_user|view|list|reset>',
+  permission: 'Administrator',
+  example: '/whitelist add_user user:@user category:ALL'
+};
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { whitelistService: WhitelistService }
 ): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
   const guildId = interaction.guildId!;
+
+  // Permission Check: Owner OR Role > Bot
+  const member = interaction.member as import('discord.js').GuildMember;
+  const botMember = interaction.guild!.members.me!;
+
+  if (interaction.user.id !== interaction.guild!.ownerId) {
+    if (member.roles.highest.position <= botMember.roles.highest.position) {
+      const errorEmbed = new EmbedBuilder()
+        .setColor(EmbedColors.ERROR)
+        .setTitle('Permission Denied')
+        .setDescription(
+          'You must be the **Server Owner** or have a **Role higher than the Bot** to manage whitelists.'
+        );
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+      return;
+    }
+  }
 
   switch (subcommand) {
     case 'add_role':
@@ -250,7 +276,7 @@ async function handleAddRole(
         `I may not be able to take actions against users with this role if needed.`
       )
       .setColor(EmbedColors.WARNING);
-    
+
     await interaction.followUp({ embeds: [embed], ephemeral: true });
   }
 
@@ -263,7 +289,7 @@ async function handleAddRole(
         `This means users with this role will bypass all anti-nuke protections.`
       )
       .setColor(EmbedColors.WARNING);
-    
+
     await interaction.followUp({ embeds: [embed], ephemeral: true });
   }
 
@@ -430,7 +456,7 @@ async function handleView(
     .setDescription(`ID: ${targetId}`)
     .addFields({
       name: 'Categories',
-      value: entries.map(e => 
+      value: entries.map(e =>
         `• ${formatCategoryName(e.category)} (added <t:${Math.floor(e.createdAt.getTime() / 1000)}:R>)`
       ).join('\n'),
       inline: false,
@@ -474,7 +500,7 @@ async function handleList(
   for (const [targetId, targetEntries] of grouped) {
     const isRole = targetEntries[0].isRole;
     const categoriesList = targetEntries.map(e => formatCategoryName(e.category as WhitelistCategory));
-    
+
     let displayName = targetId;
     try {
       if (isRole) {
@@ -534,15 +560,15 @@ async function handleList(
     components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(addButton));
   }
 
-  const response = await interaction.editReply({ 
-    embeds: [embed], 
-    components 
+  const response = await interaction.editReply({
+    embeds: [embed],
+    components
   });
 
   // Create collector for buttons
   const collector = response.createMessageComponentCollector({
     componentType: ComponentType.Button,
-    filter: (i) => i.user.id === interaction.user.id && 
+    filter: (i) => i.user.id === interaction.user.id &&
       (i.customId === `whitelist_remove_${interaction.user.id}` || i.customId === `whitelist_add_${interaction.user.id}`),
     time: 300000,
   });
@@ -560,7 +586,7 @@ async function handleList(
   });
 
   collector.on('end', () => {
-    interaction.editReply({ components: [] }).catch(() => {});
+    interaction.editReply({ components: [] }).catch(() => { });
   });
 }
 
@@ -612,9 +638,9 @@ async function handleAddInterface(
 
   // Handle type selection
   const typeCollector = i.message!.createMessageComponentCollector({
-    filter: (si) => si.user.id === originalInteraction.user.id && 
-      (si.customId === `whitelist_add_type_${originalInteraction.user.id}` || 
-       si.customId === `whitelist_add_cancel_${originalInteraction.user.id}`),
+    filter: (si) => si.user.id === originalInteraction.user.id &&
+      (si.customId === `whitelist_add_type_${originalInteraction.user.id}` ||
+        si.customId === `whitelist_add_cancel_${originalInteraction.user.id}`),
     time: 120000,
     max: 1,
   });
@@ -659,7 +685,7 @@ async function handleAddInterface(
 
     // Handle back button
     const backCollector = si.message!.createMessageComponentCollector({
-      filter: (bi: MessageComponentInteraction) => bi.user.id === originalInteraction.user.id && 
+      filter: (bi: MessageComponentInteraction) => bi.user.id === originalInteraction.user.id &&
         bi.customId === `whitelist_add_back_${originalInteraction.user.id}`,
       time: 30000,
       max: 1,
@@ -687,11 +713,11 @@ async function handleRemoveInterface(
   // Show selection menu with all whitelisted entries
   const guild = originalInteraction.guild!;
   const options: Array<{ label: string; description: string; value: string }> = [];
-  
+
   for (const [targetId, targetEntries] of grouped.entries()) {
     const isRole = targetEntries[0].isRole;
     const categories = targetEntries.map(e => formatCategoryName(e.category as WhitelistCategory)).join(', ');
-    
+
     let displayName = targetId;
     try {
       if (isRole) {
@@ -704,14 +730,14 @@ async function handleRemoveInterface(
     } catch (error) {
       displayName = targetId;
     }
-    
+
     const label = `${isRole ? 'Role' : 'User'}: ${displayName}`;
     options.push({
       label: label.slice(0, 100),
       description: categories.slice(0, 100),
       value: `${targetId}:${isRole ? 'role' : 'user'}`,
     });
-    
+
     if (options.length >= 25) break; // Discord limit
   }
 
@@ -741,9 +767,9 @@ async function handleRemoveInterface(
 
   // Wait for selection
   const selectCollector = i.message!.createMessageComponentCollector({
-    filter: (si) => si.user.id === originalInteraction.user.id && 
-      (si.customId === `whitelist_remove_select_${originalInteraction.user.id}` || 
-       si.customId === `whitelist_remove_cancel_${originalInteraction.user.id}`),
+    filter: (si) => si.user.id === originalInteraction.user.id &&
+      (si.customId === `whitelist_remove_select_${originalInteraction.user.id}` ||
+        si.customId === `whitelist_remove_cancel_${originalInteraction.user.id}`),
     time: 120000,
     max: 1,
   });
@@ -789,13 +815,13 @@ async function handleRemoveInterface(
 
   selectCollector.on('end', (collected) => {
     if (collected.size === 0) {
-      i.editReply({ 
+      i.editReply({
         embeds: [new EmbedBuilder()
           .setColor(EmbedColors.ERROR)
           .setDescription(`${CustomEmojis.CROSS} Selection timed out.`)
-        ], 
-        components: [] 
-      }).catch(() => {});
+        ],
+        components: []
+      }).catch(() => { });
     }
   });
 }

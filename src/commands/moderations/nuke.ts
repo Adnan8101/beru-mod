@@ -18,19 +18,23 @@ import {
 } from 'discord.js';
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
+import { createErrorEmbed, createWarningEmbed, createSuccessEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('nuke')
-  .setDescription('Delete and recreate this channel (preserves all settings)')
-  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+  .setDescription('Nuke a channel (delete and recreate)')
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+export const category = 'moderation';
+export const syntax = '!nuke';
+export const example = '!nuke';
+export const permission = 'Administrator';
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const channel = interaction.channel as TextChannel;
-  
+
   if (!channel || !interaction.guild) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} This command must be used in a server channel.`);
+    const errorEmbed = createErrorEmbed('This command must be used in a server channel.');
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
@@ -38,9 +42,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   // Check bot permissions
   const botMember = interaction.guild.members.me;
   if (!botMember?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} I need the **Manage Channels** permission to nuke channels.`);
+    const errorEmbed = createErrorEmbed('I need the **Manage Channels** permission to nuke channels.');
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     return;
   }
@@ -85,17 +87,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
 
     if (buttonInteraction.customId.startsWith('nuke_cancel_')) {
-      const cancelEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.INFO)
-        .setDescription(`${CustomEmojis.CROSS} Channel nuke cancelled.`);
+      const cancelEmbed = createErrorEmbed('Channel nuke cancelled.');
       await buttonInteraction.update({ embeds: [cancelEmbed], components: [] });
       return;
     }
 
     // User confirmed - proceed with nuke
-    const processingEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.WARNING)
-      .setDescription(`${CustomEmojis.SETTING} Nuking channel in 3 seconds...`);
+    const processingEmbed = createWarningEmbed('Nuking channel in 3 seconds...');
     await buttonInteraction.update({ embeds: [processingEmbed], components: [] });
 
     // Wait 3 seconds
@@ -141,10 +139,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     // Send completion message in new channel
     if (newChannel.isTextBased()) {
-      const successEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.SUCCESS)
-        .setTitle(`${CustomEmojis.TICK} Channel Nuked Successfully`)
-        .setDescription(`This channel has been recreated by ${interaction.user}.`)
+      const successEmbed = createSuccessEmbed(`Channel Nuked Successfully\nThis channel has been recreated by ${interaction.user}.`)
         .setFooter({ text: `Nuked by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
         .setTimestamp();
 
@@ -153,16 +148,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   } catch (error: any) {
     if (error.message?.includes('time')) {
       // Timeout
-      const timeoutEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.ERROR)
-        .setDescription(`${CustomEmojis.CROSS} Confirmation timed out. Channel nuke cancelled.`);
+      const timeoutEmbed = createErrorEmbed('Confirmation timed out. Channel nuke cancelled.');
       await interaction.editReply({ embeds: [timeoutEmbed], components: [] });
     } else {
       console.error('Nuke error:', error);
-      const errorEmbed = new EmbedBuilder()
-        .setColor(EmbedColors.ERROR)
-        .setDescription(`${CustomEmojis.CROSS} Failed to nuke channel: ${error.message || 'Unknown error'}`);
-      
+      const errorEmbed = createErrorEmbed(`Failed to nuke channel: ${error.message || 'Unknown error'}`);
+
       try {
         await interaction.editReply({ embeds: [errorEmbed], components: [] });
       } catch {

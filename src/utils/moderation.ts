@@ -32,6 +32,11 @@ export function canModerate(
     return { allowed: false, reason: 'You do not have the required permission.' };
   }
 
+  // Special check for Timeout (ModerateMembers): Cannot timeout Administrators
+  if (permission === PermissionFlagsBits.ModerateMembers && target.permissions.has(PermissionFlagsBits.Administrator)) {
+    return { allowed: false, reason: 'Members with Administrator permission cannot be timed out.' };
+  }
+
   // Check role hierarchy
   if (moderator.roles.highest.position <= target.roles.highest.position) {
     return { allowed: false, reason: 'You cannot moderate someone with an equal or higher role.' };
@@ -58,6 +63,11 @@ export function botCanModerate(
     return { allowed: false, reason: 'I do not have the required permission.' };
   }
 
+  // Special check for Timeout (ModerateMembers): Cannot timeout Administrators
+  if (permission === PermissionFlagsBits.ModerateMembers && target.permissions.has(PermissionFlagsBits.Administrator)) {
+    return { allowed: false, reason: 'I cannot mute/timeout a member with Administrator permissions.' };
+  }
+
   // Check role hierarchy
   if (bot.roles.highest.position <= target.roles.highest.position) {
     return { allowed: false, reason: 'I cannot moderate someone with an equal or higher role than mine.' };
@@ -73,19 +83,19 @@ export function botCanModerate(
 export function parseDuration(durationStr: string): number | null {
   const regex = /^(\d+)([smhd])$/;
   const match = durationStr.toLowerCase().match(regex);
-  
+
   if (!match) return null;
-  
+
   const value = parseInt(match[1]);
   const unit = match[2];
-  
+
   const multipliers: Record<string, number> = {
     s: 1000,           // seconds
     m: 60 * 1000,      // minutes
     h: 60 * 60 * 1000, // hours
     d: 24 * 60 * 60 * 1000, // days
   };
-  
+
   return value * multipliers[unit];
 }
 
@@ -97,7 +107,7 @@ export function formatDuration(ms: number): string {
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  
+
   if (days > 0) return `${days}d`;
   if (hours > 0) return `${hours}h`;
   if (minutes > 0) return `${minutes}m`;
@@ -116,6 +126,6 @@ export function getPermissionName(permission: bigint): string {
     [PermissionFlagsBits.ManageRoles.toString()]: 'Manage Roles',
     [PermissionFlagsBits.ManageNicknames.toString()]: 'Manage Nicknames',
   };
-  
+
   return names[permission.toString()] || 'Unknown Permission';
 }

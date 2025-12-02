@@ -58,6 +58,11 @@ export const data = new SlashCommandBuilder()
       .setDescription('Enable or disable an auto-responder')
   );
 
+export const category = 'autoresponder';
+export const syntax = '/autoresponder <add|list|edit|delete|toggle>';
+export const example = '/autoresponder add trigger:hello';
+export const permission = 'Manage Guild';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: {

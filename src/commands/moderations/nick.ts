@@ -12,6 +12,7 @@ import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 import { canModerate, botCanModerate } from '../../utils/moderation';
 import { LoggingService } from '../../services/LoggingService';
+import { createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('nick')
@@ -26,8 +27,8 @@ export const data = new SlashCommandBuilder()
   .addStringOption(option =>
     option
       .setName('nickname')
-      .setDescription('New nickname (leave empty to reset)')
-      .setRequired(false)
+      .setDescription('New nickname (max 32 chars)')
+      .setRequired(true)
       .setMaxLength(32)
   )
   .addStringOption(option =>
@@ -54,26 +55,23 @@ export async function execute(
   try {
     target = await guild.members.fetch(user.id);
   } catch {
-    await interaction.editReply({
-      content: '❌ User is not a member of this server.',
-    });
+    const errorEmbed = createErrorEmbed('User is not a member of this server.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check permissions
   const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.ManageNicknames);
   if (!moderatorCheck.allowed) {
-    await interaction.editReply({
-      content: `❌ ${moderatorCheck.reason}`,
-    });
+    const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   const botCheck = botCanModerate(guild.members.me!, target, PermissionFlagsBits.ManageNicknames);
   if (!botCheck.allowed) {
-    await interaction.editReply({
-      content: `❌ ${botCheck.reason}`,
-    });
+    const errorEmbed = createErrorEmbed(botCheck.reason || 'I cannot moderate this user.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -85,7 +83,7 @@ export async function execute(
     await target.setNickname(nickname, reason);
 
     const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> Nickname Changed')
+      .setTitle(`${CustomEmojis.TICK} Nickname Changed`)
       .setDescription(`${user.tag}'s nickname has been changed.`)
       .setColor(EmbedColors.SUCCESS)
       .addFields(
@@ -107,8 +105,7 @@ export async function execute(
       reason: `${oldNickname} → ${nickname || user.username}`,
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to change nickname: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to change nickname: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

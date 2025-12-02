@@ -11,6 +11,7 @@ import {
 import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 import { LoggingService } from '../../services/LoggingService';
+import { createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('role')
@@ -31,9 +32,14 @@ export const data = new SlashCommandBuilder()
   .addStringOption(option =>
     option
       .setName('reason')
-      .setDescription('Reason for the change')
+      .setDescription('Reason for the role change')
       .setRequired(false)
   );
+
+export const category = 'moderation';
+export const syntax = '!role <user> <role> [reason]';
+export const example = '!role @user @Member Promotion';
+export const permission = 'Manage Roles';
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
@@ -49,26 +55,23 @@ export async function execute(
 
   // Validate role
   if (role.id === guild.roles.everyone.id) {
-    await interaction.editReply({
-      content: '❌ Cannot modify the @everyone role.',
-    });
+    const errorEmbed = createErrorEmbed('Cannot modify the @everyone role.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check if moderator can manage this role
   if (role.position >= moderator.roles.highest.position && moderator.id !== guild.ownerId) {
-    await interaction.editReply({
-      content: '❌ You cannot manage a role equal to or higher than your highest role.',
-    });
+    const errorEmbed = createErrorEmbed('You cannot manage a role equal to or higher than your highest role.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check if bot can manage this role
   const botMember = guild.members.me!;
   if (role.position >= botMember.roles.highest.position) {
-    await interaction.editReply({
-      content: '❌ I cannot manage a role equal to or higher than my highest role.',
-    });
+    const errorEmbed = createErrorEmbed('I cannot manage a role equal to or higher than my highest role.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -77,9 +80,8 @@ export async function execute(
   try {
     target = await guild.members.fetch(user.id);
   } catch {
-    await interaction.editReply({
-      content: '❌ User is not a member of this server.',
-    });
+    const errorEmbed = createErrorEmbed('User is not a member of this server.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -95,7 +97,7 @@ export async function execute(
     }
 
     const embed = new EmbedBuilder()
-      .setTitle(hasRole ? '<:tcet_tick:1437995479567962184> Role Removed' : '<:tcet_tick:1437995479567962184> Role Added')
+      .setTitle(hasRole ? `${CustomEmojis.TICK} Role Removed` : `${CustomEmojis.TICK} Role Added`)
       .setDescription(
         hasRole
           ? `Removed ${role} from ${user.tag}.`
@@ -121,8 +123,7 @@ export async function execute(
       reason: `${role.name}`,
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to ${action} role: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to ${action} role: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

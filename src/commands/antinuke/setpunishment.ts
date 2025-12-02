@@ -9,7 +9,7 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import { ConfigService } from '../../services/ConfigService';
-import { ProtectionAction, PunishmentType, EmbedColors } from '../../types';
+import { ProtectionAction, PunishmentType, EmbedColors, SlashCommand } from '../../types';
 
 export const data = new SlashCommandBuilder()
   .setName('setpunishment')
@@ -52,6 +52,15 @@ export const data = new SlashCommandBuilder()
       .setMinValue(60)
       .setMaxValue(2419200) // 28 days max
   );
+
+export const slashCommand: SlashCommand = {
+  data: data,
+  execute: execute,
+  category: 'antinuke',
+  syntax: '/setpunishment <action> <punishment> [duration_seconds]',
+  permission: 'Administrator',
+  example: '/setpunishment action:ban_members punishment:ban'
+};
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
@@ -99,7 +108,7 @@ export async function execute(
         '\n\nThe punishment will be saved but won\'t work until permissions are granted.'
       )
       .setColor(EmbedColors.WARNING);
-    
+
     await interaction.followUp({ embeds: [embed], ephemeral: true });
   }
 
@@ -121,7 +130,7 @@ export async function execute(
         `The punishment will be saved, but won't take effect until you enable this protection.`
       )
       .setColor(EmbedColors.WARNING);
-    
+
     await interaction.followUp({ embeds: [embed], ephemeral: true });
   }
 
@@ -160,9 +169,8 @@ export async function execute(
     embed.addFields({
       name: 'Enforcement',
       value: `Users performing more than **${limit.limitCount}** ${formatActionName(action).toLowerCase()} ` +
-             `within **${limit.windowMs / 1000}** seconds will be **${punishment}**${
-               durationSeconds ? ` for ${formatDuration(durationSeconds)}` : ''
-             }.`,
+        `within **${limit.windowMs / 1000}** seconds will be **${punishment}**${durationSeconds ? ` for ${formatDuration(durationSeconds)}` : ''
+        }.`,
       inline: false,
     });
   } else {

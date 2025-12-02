@@ -1,8 +1,8 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
+  PermissionFlagsBits,
   EmbedBuilder,
   GuildMember,
   ChannelType,
@@ -51,9 +51,9 @@ const slashCommand: SlashCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      
+
       // Check if panel already exists
-      const existingPanel = db.getPanel(interaction.guild.id, panelName);
+      const existingPanel = await db.getPanel(interaction.guild.id, panelName);
       if (existingPanel) {
         await interaction.editReply(`A panel named "${panelName}" already exists!`);
         return;
@@ -69,97 +69,80 @@ const slashCommand: SlashCommand = {
       // Get server stats
       const guild = interaction.guild;
       await guild.members.fetch(); // Fetch all members
+      await guild.members.fetch({ withPresences: true }); // Fetch presences
 
       const totalMembers = guild.memberCount;
       const users = guild.members.cache.filter(member => !member.user.bot).size;
       const bots = guild.members.cache.filter(member => member.user.bot).size;
 
+      // Status counts
+      const online = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'online').size;
+      const idle = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'idle').size;
+      const dnd = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'dnd').size;
+
       // Create channels based on type
       let totalChannel, usersChannel, botsChannel;
+      let onlineChannel, idleChannel, dndChannel;
 
       if (channelType === 'vc') {
-        totalChannel = await interaction.guild.channels.create({
-          name: `Total: ${totalMembers}`,
-          type: ChannelType.GuildVoice,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone,
-              deny: [PermissionFlagsBits.Connect]
-            }
-          ]
-        });
+        const createVc = async (name: string) => {
+          if (!interaction.guild) throw new Error('Guild not found');
+          return await interaction.guild.channels.create({
+            name,
+            type: ChannelType.GuildVoice,
+            parent: category,
+            permissionOverwrites: [
+              {
+                id: interaction.guild.roles.everyone,
+                deny: [PermissionFlagsBits.Connect]
+              }
+            ]
+          });
+        };
 
-        usersChannel = await interaction.guild.channels.create({
-          name: `Users: ${users}`,
-          type: ChannelType.GuildVoice,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone,
-              deny: [PermissionFlagsBits.Connect]
-            }
-          ]
-        });
+        totalChannel = await createVc(`Total: ${totalMembers}`);
+        usersChannel = await createVc(`Users: ${users}`);
+        botsChannel = await createVc(`Bots: ${bots}`);
+        onlineChannel = await createVc(`🟢 Online: ${online}`);
+        idleChannel = await createVc(`🌙 Idle: ${idle}`);
+        dndChannel = await createVc(`⛔ DND: ${dnd}`);
 
-        botsChannel = await interaction.guild.channels.create({
-          name: `Bots: ${bots}`,
-          type: ChannelType.GuildVoice,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone,
-              deny: [PermissionFlagsBits.Connect]
-            }
-          ]
-        });
       } else {
-        totalChannel = await interaction.guild.channels.create({
-          name: `total-${totalMembers}`,
-          type: ChannelType.GuildText,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone,
-              deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
-            }
-          ]
-        });
+        const createText = async (name: string) => {
+          if (!interaction.guild) throw new Error('Guild not found');
+          return await interaction.guild.channels.create({
+            name,
+            type: ChannelType.GuildText,
+            parent: category,
+            permissionOverwrites: [
+              {
+                id: interaction.guild.roles.everyone,
+                deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
+              }
+            ]
+          });
+        };
 
-        usersChannel = await interaction.guild.channels.create({
-          name: `users-${users}`,
-          type: ChannelType.GuildText,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone,
-              deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
-            }
-          ]
-        });
-
-        botsChannel = await interaction.guild.channels.create({
-          name: `bots-${bots}`,
-          type: ChannelType.GuildText,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone,
-              deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
-            }
-          ]
-        });
+        totalChannel = await createText(`total-${totalMembers}`);
+        usersChannel = await createText(`users-${users}`);
+        botsChannel = await createText(`bots-${bots}`);
+        onlineChannel = await createText(`online-${online}`);
+        idleChannel = await createText(`idle-${idle}`);
+        dndChannel = await createText(`dnd-${dnd}`);
       }
 
       // Save to database
-      db.createPanel({
+      await db.createPanel({
         guildId: interaction.guild.id,
         panelName: panelName,
         channelType: channelType,
         categoryId: category.id,
         totalChannelId: totalChannel.id,
         usersChannelId: usersChannel.id,
-        botsChannelId: botsChannel.id
+        botsChannelId: botsChannel.id,
+        onlineChannelId: onlineChannel.id,
+        idleChannelId: idleChannel.id,
+        dndChannelId: dndChannel.id
       });
 
       const embed = new EmbedBuilder()
@@ -169,12 +152,13 @@ const slashCommand: SlashCommand = {
         .addFields([
           { name: 'Panel Name', value: panelName, inline: false },
           { name: 'Channel Type', value: channelType === 'vc' ? 'Voice Channels' : 'Text Channels', inline: false },
-          { name: 'Total Members', value: totalMembers.toString(), inline: false },
-          { name: 'Users', value: users.toString(), inline: false },
-          { name: 'Bots', value: bots.toString(), inline: false }
+          { name: 'Total Members', value: totalMembers.toString(), inline: true },
+          { name: 'Users', value: users.toString(), inline: true },
+          { name: 'Bots', value: bots.toString(), inline: true },
+          { name: 'Status', value: `🟢 ${online} | 🌙 ${idle} | ⛔ ${dnd}`, inline: false }
         ])
         .setTimestamp()
-        .setFooter({ text: 'Server Stats will auto-update every 20 minutes' });
+        .setFooter({ text: 'Server Stats will auto-update every 10 minutes' });
 
       await interaction.editReply({ embeds: [embed] });
 
@@ -225,9 +209,9 @@ const prefixCommand: PrefixCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      
+
       // Check if panel already exists
-      const existingPanel = db.getPanel(message.guild.id, panelName);
+      const existingPanel = await db.getPanel(message.guild.id, panelName);
       if (existingPanel) {
         await statusMessage.edit(`A panel named "${panelName}" already exists!`);
         return;
@@ -243,97 +227,80 @@ const prefixCommand: PrefixCommand = {
       // Get server stats
       const guild = message.guild;
       await guild.members.fetch(); // Fetch all members
+      await guild.members.fetch({ withPresences: true }); // Fetch presences
 
       const totalMembers = guild.memberCount;
       const users = guild.members.cache.filter(member => !member.user.bot).size;
       const bots = guild.members.cache.filter(member => member.user.bot).size;
 
+      // Status counts
+      const online = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'online').size;
+      const idle = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'idle').size;
+      const dnd = guild.members.cache.filter(m => !m.user.bot && m.presence?.status === 'dnd').size;
+
       // Create channels based on type
       let totalChannel, usersChannel, botsChannel;
+      let onlineChannel, idleChannel, dndChannel;
 
       if (channelType === 'vc') {
-        totalChannel = await message.guild.channels.create({
-          name: `Total: ${totalMembers}`,
-          type: ChannelType.GuildVoice,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: message.guild.roles.everyone,
-              deny: [PermissionFlagsBits.Connect]
-            }
-          ]
-        });
+        const createVc = async (name: string) => {
+          if (!message.guild) throw new Error('Guild not found');
+          return await message.guild.channels.create({
+            name,
+            type: ChannelType.GuildVoice,
+            parent: category,
+            permissionOverwrites: [
+              {
+                id: message.guild.roles.everyone,
+                deny: [PermissionFlagsBits.Connect]
+              }
+            ]
+          });
+        };
 
-        usersChannel = await message.guild.channels.create({
-          name: `Users: ${users}`,
-          type: ChannelType.GuildVoice,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: message.guild.roles.everyone,
-              deny: [PermissionFlagsBits.Connect]
-            }
-          ]
-        });
+        totalChannel = await createVc(`Total: ${totalMembers}`);
+        usersChannel = await createVc(`Users: ${users}`);
+        botsChannel = await createVc(`Bots: ${bots}`);
+        onlineChannel = await createVc(`🟢 Online: ${online}`);
+        idleChannel = await createVc(`🌙 Idle: ${idle}`);
+        dndChannel = await createVc(`⛔ DND: ${dnd}`);
 
-        botsChannel = await message.guild.channels.create({
-          name: `Bots: ${bots}`,
-          type: ChannelType.GuildVoice,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: message.guild.roles.everyone,
-              deny: [PermissionFlagsBits.Connect]
-            }
-          ]
-        });
       } else {
-        totalChannel = await message.guild.channels.create({
-          name: `total-${totalMembers}`,
-          type: ChannelType.GuildText,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: message.guild.roles.everyone,
-              deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
-            }
-          ]
-        });
+        const createText = async (name: string) => {
+          if (!message.guild) throw new Error('Guild not found');
+          return await message.guild.channels.create({
+            name,
+            type: ChannelType.GuildText,
+            parent: category,
+            permissionOverwrites: [
+              {
+                id: message.guild.roles.everyone,
+                deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
+              }
+            ]
+          });
+        };
 
-        usersChannel = await message.guild.channels.create({
-          name: `users-${users}`,
-          type: ChannelType.GuildText,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: message.guild.roles.everyone,
-              deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
-            }
-          ]
-        });
-
-        botsChannel = await message.guild.channels.create({
-          name: `bots-${bots}`,
-          type: ChannelType.GuildText,
-          parent: category,
-          permissionOverwrites: [
-            {
-              id: message.guild.roles.everyone,
-              deny: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.AddReactions]
-            }
-          ]
-        });
+        totalChannel = await createText(`total-${totalMembers}`);
+        usersChannel = await createText(`users-${users}`);
+        botsChannel = await createText(`bots-${bots}`);
+        onlineChannel = await createText(`online-${online}`);
+        idleChannel = await createText(`idle-${idle}`);
+        dndChannel = await createText(`dnd-${dnd}`);
       }
 
       // Save to database
-      db.createPanel({
+      await db.createPanel({
         guildId: message.guild.id,
         panelName: panelName,
         channelType: channelType as 'vc' | 'text',
         categoryId: category.id,
         totalChannelId: totalChannel.id,
         usersChannelId: usersChannel.id,
-        botsChannelId: botsChannel.id
+        botsChannelId: botsChannel.id,
+        onlineChannelId: onlineChannel.id,
+        idleChannelId: idleChannel.id,
+        dndChannelId: dndChannel.id
       });
 
       const embed = new EmbedBuilder()
@@ -343,12 +310,13 @@ const prefixCommand: PrefixCommand = {
         .addFields([
           { name: 'Panel Name', value: panelName, inline: false },
           { name: 'Channel Type', value: channelType === 'vc' ? 'Voice Channels' : 'Text Channels', inline: false },
-          { name: 'Total Members', value: totalMembers.toString(), inline: false },
-          { name: 'Users', value: users.toString(), inline: false },
-          { name: 'Bots', value: bots.toString(), inline: false }
+          { name: 'Total Members', value: totalMembers.toString(), inline: true },
+          { name: 'Users', value: users.toString(), inline: true },
+          { name: 'Bots', value: bots.toString(), inline: true },
+          { name: 'Status', value: `🟢 ${online} | 🌙 ${idle} | ⛔ ${dnd}`, inline: false }
         ])
         .setTimestamp()
-        .setFooter({ text: 'Server Stats will auto-update every 20 minutes' });
+        .setFooter({ text: 'Server Stats will auto-update every 10 minutes' });
 
       await statusMessage.edit({ content: '', embeds: [embed] });
 

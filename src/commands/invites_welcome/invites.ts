@@ -1,12 +1,14 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   User
 } from 'discord.js';
 import { SlashCommand, PrefixCommand } from '../../types';
 import { DatabaseManager } from '../../utils/DatabaseManager';
+import { createInfoEmbed, createErrorEmbed } from '../../utils/embedHelpers';
+import { CustomEmojis } from '../../utils/emoji';
 
 const slashCommand: SlashCommand = {
   data: new SlashCommandBuilder()
@@ -16,45 +18,49 @@ const slashCommand: SlashCommand = {
       option.setName('user')
         .setDescription('The user to check invites for (optional)')
         .setRequired(false)),
+  category: 'invites_welcome',
+  syntax: '/invites [user]',
+  permission: 'None',
+  example: '/invites @user',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const guild = interaction.guild;
 
     if (!guild) {
-      await interaction.reply({ content: 'This command can only be used in a server!', ephemeral: true });
+      const errorEmbed = createErrorEmbed('This command can only be used in a server!');
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
       return;
     }
 
     try {
       const db = DatabaseManager.getInstance();
-      
-      const regularInvites = db.getUserInviteCount(guild.id, targetUser.id);
-      const leftInvites = db.getUserLeftCount(guild.id, targetUser.id);
-      const fakeInvites = db.getUserFakeCount(guild.id, targetUser.id);
-      const bonusInvites = db.getUserBonusInvites(guild.id, targetUser.id);
+
+      const regularInvites = await db.getUserInviteCount(guild.id, targetUser.id);
+      const leftInvites = await db.getUserLeftCount(guild.id, targetUser.id);
+      const fakeInvites = await db.getUserFakeCount(guild.id, targetUser.id);
+      const bonusInvites = await db.getUserBonusInvites(guild.id, targetUser.id);
       const totalInvites = regularInvites + bonusInvites - leftInvites - fakeInvites;
 
-      const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
+      const embed = createInfoEmbed('Invite Statistics', '')
         .setAuthor({
           name: targetUser.username,
           iconURL: targetUser.displayAvatarURL()
         })
         .setDescription(
-          `You currently have **${totalInvites}** invites. ` +
+          `${CustomEmojis.TICK} You currently have **${totalInvites}** invites.\n` +
           `(${regularInvites} regular, ${leftInvites} left, ${fakeInvites} fake, ${bonusInvites} bonus)`
         )
         .setThumbnail(targetUser.displayAvatarURL())
-        .setTimestamp()
-        .setFooter({ text: 'Invite Statistics' });
+        .setTimestamp();
 
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error fetching invite data:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while fetching invite statistics.', 
-        ephemeral: true 
+      const errorEmbed = createErrorEmbed('An error occurred while fetching invite statistics.');
+      await interaction.reply({
+        embeds: [errorEmbed],
+        ephemeral: true
       });
     }
   },
@@ -70,7 +76,8 @@ const prefixCommand: PrefixCommand = {
   async execute(message: Message, args: string[]): Promise<void> {
     const guild = message.guild;
     if (!guild) {
-      await message.reply('This command can only be used in a server!');
+      const errorEmbed = createErrorEmbed('This command can only be used in a server!');
+      await message.reply({ embeds: [errorEmbed] });
       return;
     }
 
@@ -79,48 +86,49 @@ const prefixCommand: PrefixCommand = {
     if (args.length > 0) {
       const userMention = args[0];
       const userId = userMention.replace(/[<@!>]/g, '');
-      
+
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
         if (member) {
           targetUser = member.user;
         } else {
-          await message.reply('User not found in this server!');
+          const errorEmbed = createErrorEmbed('User not found in this server!');
+          await message.reply({ embeds: [errorEmbed] });
           return;
         }
       } catch (error) {
-        await message.reply('Invalid user mentioned!');
+        const errorEmbed = createErrorEmbed('Invalid user mentioned!');
+        await message.reply({ embeds: [errorEmbed] });
         return;
       }
     }
 
     try {
       const db = DatabaseManager.getInstance();
-      
-      const regularInvites = db.getUserInviteCount(guild.id, targetUser.id);
-      const leftInvites = db.getUserLeftCount(guild.id, targetUser.id);
-      const fakeInvites = db.getUserFakeCount(guild.id, targetUser.id);
-      const bonusInvites = db.getUserBonusInvites(guild.id, targetUser.id);
+
+      const regularInvites = await db.getUserInviteCount(guild.id, targetUser.id);
+      const leftInvites = await db.getUserLeftCount(guild.id, targetUser.id);
+      const fakeInvites = await db.getUserFakeCount(guild.id, targetUser.id);
+      const bonusInvites = await db.getUserBonusInvites(guild.id, targetUser.id);
       const totalInvites = regularInvites + bonusInvites - leftInvites - fakeInvites;
 
-      const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
+      const embed = createInfoEmbed('Invite Statistics', '')
         .setAuthor({
           name: targetUser.username,
           iconURL: targetUser.displayAvatarURL()
         })
         .setDescription(
-          `You currently have **${totalInvites}** invites. ` +
+          `${CustomEmojis.TICK} You currently have **${totalInvites}** invites.\n` +
           `(${regularInvites} regular, ${leftInvites} left, ${fakeInvites} fake, ${bonusInvites} bonus)`
         )
         .setThumbnail(targetUser.displayAvatarURL())
-        .setTimestamp()
-        .setFooter({ text: 'Invite Statistics' });
+        .setTimestamp();
 
       await message.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error fetching invite data:', error);
-      await message.reply('An error occurred while fetching invite statistics.');
+      const errorEmbed = createErrorEmbed('An error occurred while fetching invite statistics.');
+      await message.reply({ embeds: [errorEmbed] });
     }
   },
 };

@@ -21,7 +21,7 @@ export class RecoveryManager {
     private client: Client,
     private caseService: CaseService,
     private loggingService: LoggingService
-  ) {}
+  ) { }
 
   /**
    * Create snapshots of current guild state
@@ -29,14 +29,14 @@ export class RecoveryManager {
   async createSnapshot(guildId: string): Promise<void> {
     try {
       const guild = await this.client.guilds.fetch(guildId);
-      
+
       // Snapshot roles
       await this.snapshotRoles(guild);
-      
+
       // Snapshot channels
       await this.snapshotChannels(guild);
 
-      console.log(`<:tcet_tick:1437995479567962184> Snapshot created for guild ${guild.name}`);
+      console.log(`✔ Snapshot created for guild ${guild.name}`);
     } catch (error) {
       console.error(`Failed to create snapshot for guild ${guildId}:`, error);
     }
@@ -255,7 +255,7 @@ export class RecoveryManager {
         });
 
         result.rolesRestored++;
-        console.log(`<:tcet_tick:1437995479567962184> Restored role: ${backup.name}`);
+        console.log(`✔ Restored role: ${backup.name}`);
 
       } catch (error) {
         const errorMsg = `Failed to restore role ${backup.name}: ${error}`;
@@ -304,7 +304,7 @@ export class RecoveryManager {
 
         categoryIdMap.set(backup.channelId, newCategory.id);
         result.channelsRestored++;
-        console.log(`<:tcet_tick:1437995479567962184> Restored category: ${backup.name}`);
+        console.log(`✔ Restored category: ${backup.name}`);
 
       } catch (error) {
         result.errors.push(`Failed to restore category ${backup.name}: ${error}`);
@@ -362,7 +362,7 @@ export class RecoveryManager {
         }
 
         result.channelsRestored++;
-        console.log(`<:tcet_tick:1437995479567962184> Restored channel: ${backup.name}`);
+        console.log(`✔ Restored channel: ${backup.name}`);
 
       } catch (error) {
         result.errors.push(`Failed to restore channel ${backup.name}: ${error}`);

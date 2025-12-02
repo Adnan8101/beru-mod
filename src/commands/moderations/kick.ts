@@ -13,6 +13,7 @@ import { CustomEmojis } from '../../utils/emoji';
 import { canModerate, botCanModerate } from '../../utils/moderation';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('kick')
@@ -31,6 +32,11 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
+export const category = 'moderation';
+export const syntax = '!kick <user> [reason]';
+export const example = '!kick @user Spamming';
+export const permission = 'Kick Members';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { caseService: CaseService; loggingService: LoggingService }
@@ -47,28 +53,23 @@ export async function execute(
   try {
     target = await guild.members.fetch(user.id);
   } catch {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} User is not a member of this server.`);
+    const errorEmbed = createErrorEmbed('User is not a member of this server.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check permissions
+  // Check permissions
   const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.KickMembers);
   if (!moderatorCheck.allowed) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} ${moderatorCheck.reason}`);
+    const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   const botCheck = botCanModerate(guild.members.me!, target, PermissionFlagsBits.KickMembers);
   if (!botCheck.allowed) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} ${botCheck.reason}`);
+    const errorEmbed = createErrorEmbed(botCheck.reason || 'I cannot moderate this user.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -77,16 +78,12 @@ export async function execute(
   try {
     await target.kick(reason);
 
-    const embed = new EmbedBuilder()
-      .setTitle(`${CustomEmojis.TICK} Member Kicked`)
-      .setDescription(`**${target.user.tag}** has been kicked from the server.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: `${CustomEmojis.USER} User`, value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: `${CustomEmojis.STAFF} Moderator`, value: `${interaction.user.tag}`, inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Kicked',
+      target.user,
+      interaction.user,
+      reason
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -108,9 +105,7 @@ export async function execute(
       caseNumber: modCase.caseNumber,
     });
   } catch (error: any) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to kick member: ${error.message}`);
+    const errorEmbed = createErrorEmbed(`Failed to kick member: ${error.message}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

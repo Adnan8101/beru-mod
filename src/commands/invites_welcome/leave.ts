@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   PermissionFlagsBits,
   ChannelType
@@ -19,6 +19,10 @@ const slashCommand: SlashCommand = {
         .setRequired(true)
         .addChannelTypes(ChannelType.GuildText))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  category: 'invites_welcome',
+  syntax: '/leave <channel>',
+  permission: 'Administrator',
+  example: '/leave #goodbye',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const channel = interaction.options.getChannel('channel', true);
@@ -47,9 +51,9 @@ const slashCommand: SlashCommand = {
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error setting leave channel:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while setting the leave channel.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while setting the leave channel.',
+        ephemeral: true
       });
     }
   },

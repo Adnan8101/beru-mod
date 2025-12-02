@@ -13,6 +13,7 @@ import { CustomEmojis } from '../../utils/emoji';
 import { canModerate, botCanModerate, parseDuration, formatDuration } from '../../utils/moderation';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('mute')
@@ -28,7 +29,7 @@ export const data = new SlashCommandBuilder()
     option
       .setName('duration')
       .setDescription('Duration (e.g., 5m, 1h, 2d)')
-      .setRequired(true)
+      .setRequired(false)
   )
   .addStringOption(option =>
     option
@@ -37,6 +38,11 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
+export const category = 'moderation';
+export const syntax = '!mute <user> [duration] [reason]';
+export const example = '!mute @user 10m Spamming';
+export const permission = 'Moderate Members';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { caseService: CaseService; loggingService: LoggingService }
@@ -44,7 +50,7 @@ export async function execute(
   await interaction.deferReply();
 
   const user = interaction.options.getUser('user', true);
-  const durationStr = interaction.options.getString('duration', true);
+  const durationStr = interaction.options.getString('duration') || '30m';
   const reason = interaction.options.getString('reason') || 'No reason provided';
   const guild = interaction.guild!;
   const moderator = interaction.member as any;
@@ -52,9 +58,7 @@ export async function execute(
   // Parse duration
   const duration = parseDuration(durationStr);
   if (!duration) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Invalid duration format. Use formats like: 5s, 10m, 1h, 2d`);
+    const errorEmbed = createErrorEmbed('Invalid duration format. Use formats like: 5s, 10m, 1h, 2d');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -62,9 +66,7 @@ export async function execute(
   // Max 28 days
   const maxDuration = 28 * 24 * 60 * 60 * 1000;
   if (duration > maxDuration) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Duration cannot exceed 28 days.`);
+    const errorEmbed = createErrorEmbed('Duration cannot exceed 28 days.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -74,9 +76,7 @@ export async function execute(
   try {
     target = await guild.members.fetch(user.id);
   } catch {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} User is not a member of this server.`);
+    const errorEmbed = createErrorEmbed('User is not a member of this server.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -84,18 +84,14 @@ export async function execute(
   // Check permissions
   const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.ModerateMembers);
   if (!moderatorCheck.allowed) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} ${moderatorCheck.reason}`);
+    const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   const botCheck = botCanModerate(guild.members.me!, target, PermissionFlagsBits.ModerateMembers);
   if (!botCheck.allowed) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} ${botCheck.reason}`);
+    const errorEmbed = createErrorEmbed(botCheck.reason || 'I cannot moderate this user.');
     await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
@@ -104,17 +100,13 @@ export async function execute(
   try {
     await target.timeout(duration, reason);
 
-    const embed = new EmbedBuilder()
-      .setTitle(`${CustomEmojis.TICK} Member Muted`)
-      .setDescription(`**${target.user.tag}** has been timed out.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: `${CustomEmojis.USER} User`, value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: `${CustomEmojis.STAFF} Moderator`, value: `${interaction.user.tag}`, inline: true },
-        { name: 'Duration', value: formatDuration(duration), inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Muted',
+      target.user,
+      interaction.user,
+      reason,
+      [{ name: 'Duration', value: formatDuration(duration), inline: true }]
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -138,9 +130,7 @@ export async function execute(
       duration: formatDuration(duration),
     });
   } catch (error: any) {
-    const errorEmbed = new EmbedBuilder()
-      .setColor(EmbedColors.ERROR)
-      .setDescription(`${CustomEmojis.CROSS} Failed to mute member: ${error.message}`);
+    const errorEmbed = createErrorEmbed(`Failed to mute member: ${error.message}`);
     await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

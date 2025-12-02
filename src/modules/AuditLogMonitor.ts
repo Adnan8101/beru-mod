@@ -22,7 +22,7 @@ import { ActionLimiter } from './ActionLimiter';
 import { Executor } from './Executor';
 
 export class AuditLogMonitor extends EventEmitter {
-  private processingLock: Set<string> = new Set();
+  private processedLogIds: Set<string> = new Set();
 
   constructor(
     private client: Client,
@@ -85,7 +85,7 @@ export class AuditLogMonitor extends EventEmitter {
       await this.handleMemberUpdate(oldMember, newMember);
     });
 
-    console.log('<:tcet_tick:1437995479567962184> AuditLogMonitor: Event listeners registered');
+    console.log('✔ AuditLogMonitor: Event listeners registered');
   }
 
   /**
@@ -329,7 +329,7 @@ export class AuditLogMonitor extends EventEmitter {
     const newPerms = newRole.permissions.toArray();
     const addedPerms = newPerms.filter(p => !oldPerms.includes(p));
 
-    const dangerousPerms = ['Administrator', 'ManageGuild', 'ManageRoles', 'BanMembers', 'KickMembers'];
+    const dangerousPerms = ['ManageGuild', 'ManageRoles', 'BanMembers', 'KickMembers', 'ManageChannels'];
     const addedDangerous = addedPerms.filter(p => dangerousPerms.includes(p));
 
     if (addedDangerous.length === 0) return;
@@ -506,11 +506,16 @@ export class AuditLogMonitor extends EventEmitter {
    * Process a security event through the full pipeline
    */
   private async processSecurityEvent(event: SecurityEvent): Promise<void> {
-    const lockKey = `${event.guildId}:${event.userId}:${event.action}`;
+    // Deduplicate by Audit Log ID
+    if (event.auditLogId) {
+      if (this.processedLogIds.has(event.auditLogId)) return;
 
-    // Prevent duplicate processing
-    if (this.processingLock.has(lockKey)) return;
-    this.processingLock.add(lockKey);
+      this.processedLogIds.add(event.auditLogId);
+      // Cleanup after 10 seconds
+      setTimeout(() => {
+        if (event.auditLogId) this.processedLogIds.delete(event.auditLogId);
+      }, 10000);
+    }
 
     try {
       // 1. Check whitelist first
@@ -555,16 +560,11 @@ export class AuditLogMonitor extends EventEmitter {
         this.emit('limitExceeded', { event, count: result.count, limit: result.limit });
       } else {
         console.log(
-          `<:tcet_tick:1437995479567962184> Action within limit: ${member.user.tag} - ${event.action} (${result.count}${result.limit ? `/${result.limit}` : ''})`
+          `✔ Action within limit: ${member.user.tag} - ${event.action} (${result.count}${result.limit ? `/${result.limit}` : ''})`
         );
       }
     } catch (error) {
       console.error('Error processing security event:', error);
-    } finally {
-      // Release lock after a short delay
-      setTimeout(() => {
-        this.processingLock.delete(lockKey);
-      }, 1000);
     }
   }
 }

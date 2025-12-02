@@ -7,60 +7,68 @@ import { SecurityEvent, ProtectionAction } from '../types';
 import { ConfigService } from '../services/ConfigService';
 
 export class ActionLimiter {
+  private memoryCache: Map<string, number[]> = new Map();
+
   constructor(
     private prisma: PrismaClient,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   /**
    * Record a security event and check if limit exceeded
    * Returns the count and whether limit was exceeded
    */
   async recordAndCheck(event: SecurityEvent): Promise<{ count: number; limitExceeded: boolean; limit?: number }> {
-    // Record the action
-    await this.prisma.antiNukeAction.create({
-      data: {
-        guildId: event.guildId,
-        userId: event.userId,
-        action: event.action,
-        targetId: event.targetId,
-        timestamp: event.timestamp,
-        auditLogId: event.auditLogId,
-        metadata: event.metadata ? JSON.stringify(event.metadata) : null,
-      },
-    });
-
     // Get limit configuration
     const limitConfig = await this.configService.getLimit(event.guildId, event.action);
-    
+
     if (!limitConfig) {
-      // No limit configured, allow action
+      // Record asynchronously even if no limit
+      this.recordActionAsync(event);
       return { count: 1, limitExceeded: false };
     }
 
-    // Calculate window start time
-    const windowStart = new Date(event.timestamp.getTime() - limitConfig.windowMs);
+    const now = event.timestamp.getTime();
+    const windowStart = now - limitConfig.windowMs;
+    const cacheKey = `${event.guildId}:${event.userId}:${event.action}`;
 
-    // Count actions in the sliding window
-    const count = await this.prisma.antiNukeAction.count({
-      where: {
-        guildId: event.guildId,
-        userId: event.userId,
-        action: event.action,
-        timestamp: {
-          gte: windowStart,
-          lte: event.timestamp,
-        },
-      },
-    });
+    // Update memory cache
+    let timestamps = this.memoryCache.get(cacheKey) || [];
+    timestamps.push(now);
 
+    // Filter out old timestamps
+    timestamps = timestamps.filter(t => t >= windowStart);
+    this.memoryCache.set(cacheKey, timestamps);
+
+    const count = timestamps.length;
     const limitExceeded = count > limitConfig.limitCount;
+
+    // Record to DB asynchronously
+    this.recordActionAsync(event);
 
     return {
       count,
       limitExceeded,
       limit: limitConfig.limitCount,
     };
+  }
+
+  private async recordActionAsync(event: SecurityEvent): Promise<void> {
+    try {
+      await this.prisma.antiNukeAction.create({
+        data: {
+          guildId: event.guildId,
+          userId: event.userId,
+          action: event.action,
+          targetId: event.targetId,
+          timestamp: event.timestamp,
+          auditLogId: event.auditLogId,
+          metadata: event.metadata ? JSON.stringify(event.metadata) : null,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to record action to DB:', error);
+    }
   }
 
   /**
@@ -84,6 +92,39 @@ export class ActionLimiter {
         },
       },
     });
+  }
+
+  /**
+   * Get all actions for a user in a time window (for reversion)
+   */
+  async getActionsByUser(
+    guildId: string,
+    userId: string,
+    action: ProtectionAction,
+    windowMs: number
+  ): Promise<SecurityEvent[]> {
+    const windowStart = new Date(Date.now() - windowMs);
+
+    const actions = await this.prisma.antiNukeAction.findMany({
+      where: {
+        guildId,
+        userId,
+        action,
+        timestamp: {
+          gte: windowStart,
+        },
+      },
+    });
+
+    return actions.map(action => ({
+      guildId: action.guildId,
+      userId: action.userId,
+      action: action.action as ProtectionAction,
+      targetId: action.targetId ?? undefined,
+      auditLogId: action.auditLogId ?? undefined,
+      timestamp: action.timestamp,
+      metadata: action.metadata ? JSON.parse(action.metadata) : undefined,
+    }));
   }
 
   /**
@@ -132,5 +173,12 @@ export class ActionLimiter {
     await this.prisma.antiNukeAction.deleteMany({
       where: { guildId },
     });
+
+    // Clear memory cache for this guild
+    for (const key of this.memoryCache.keys()) {
+      if (key.startsWith(`${guildId}:`)) {
+        this.memoryCache.delete(key);
+      }
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   PermissionFlagsBits
 } from 'discord.js';
@@ -17,6 +17,10 @@ const slashCommand: SlashCommand = {
         .setDescription('The user to reset invites for')
         .setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  category: 'invites_welcome',
+  syntax: '/reset-invites <user>',
+  permission: 'Administrator',
+  example: '/reset-invites @user',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const targetUser = interaction.options.getUser('user', true);
@@ -29,15 +33,15 @@ const slashCommand: SlashCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      
+
       // Get current invite counts before resetting
-      const currentNormalInvites = db.getUserInviteCount(guild.id, targetUser.id);
-      const currentBonusInvites = db.getUserBonusInvites(guild.id, targetUser.id);
-      const currentLeftInvites = db.getUserLeftCount(guild.id, targetUser.id);
-      const currentFakeInvites = db.getUserFakeCount(guild.id, targetUser.id);
+      const currentNormalInvites = await db.getUserInviteCount(guild.id, targetUser.id);
+      const currentBonusInvites = await db.getUserBonusInvites(guild.id, targetUser.id);
+      const currentLeftInvites = await db.getUserLeftCount(guild.id, targetUser.id);
+      const currentFakeInvites = await db.getUserFakeCount(guild.id, targetUser.id);
 
       // Reset all invites
-      const resetResult = db.resetUserInvites(guild.id, targetUser.id);
+      const resetResult = await db.resetUserInvites(guild.id, targetUser.id);
 
       const embed = new EmbedBuilder()
         .setColor(0xFF0000)
@@ -60,9 +64,9 @@ const slashCommand: SlashCommand = {
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error resetting invites:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while resetting invites.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while resetting invites.',
+        ephemeral: true
       });
     }
   },
@@ -104,15 +108,15 @@ const prefixCommand: PrefixCommand = {
       }
 
       const db = DatabaseManager.getInstance();
-      
+
       // Get current invite counts before resetting
-      const currentNormalInvites = db.getUserInviteCount(guild.id, member.id);
-      const currentBonusInvites = db.getUserBonusInvites(guild.id, member.id);
-      const currentLeftInvites = db.getUserLeftCount(guild.id, member.id);
-      const currentFakeInvites = db.getUserFakeCount(guild.id, member.id);
+      const currentNormalInvites = await db.getUserInviteCount(guild.id, member.id);
+      const currentBonusInvites = await db.getUserBonusInvites(guild.id, member.id);
+      const currentLeftInvites = await db.getUserLeftCount(guild.id, member.id);
+      const currentFakeInvites = await db.getUserFakeCount(guild.id, member.id);
 
       // Reset all invites
-      const resetResult = db.resetUserInvites(guild.id, member.id);
+      const resetResult = await db.resetUserInvites(guild.id, member.id);
 
       const embed = new EmbedBuilder()
         .setColor(0xFF0000)

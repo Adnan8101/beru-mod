@@ -12,6 +12,7 @@ import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 import { CaseService } from '../../services/CaseService';
 import { LoggingService } from '../../services/LoggingService';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('unban')
@@ -30,6 +31,11 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
+export const category = 'moderation';
+export const syntax = '!unban <user_id> [reason]';
+export const example = '!unban 123456789012345678 Appeal accepted';
+export const permission = 'Ban Members';
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
   services: { caseService: CaseService; loggingService: LoggingService }
@@ -43,20 +49,16 @@ export async function execute(
   // Check if user is banned
   try {
     const ban = await guild.bans.fetch(userId);
-    
+
     // Unban the user
     await guild.bans.remove(userId, reason);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:tcet_tick:1437995479567962184> User Unbanned')
-      .setDescription(`${ban.user.tag} has been unbanned from the server.`)
-      .setColor(EmbedColors.SUCCESS)
-      .addFields(
-        { name: 'User', value: `${ban.user.tag} (${ban.user.id})`, inline: true },
-        { name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Unbanned',
+      ban.user,
+      interaction.user,
+      reason
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -79,13 +81,11 @@ export async function execute(
     });
   } catch (error: any) {
     if (error.code === 10026) {
-      await interaction.editReply({
-        content: '❌ This user is not banned.',
-      });
+      const errorEmbed = createErrorEmbed('This user is not banned.');
+      await interaction.editReply({ embeds: [errorEmbed] });
     } else {
-      await interaction.editReply({
-        content: `❌ Failed to unban user: ${error.message}`,
-      });
+      const errorEmbed = createErrorEmbed(`Failed to unban user: ${error.message}`);
+      await interaction.editReply({ embeds: [errorEmbed] });
     }
   }
 }

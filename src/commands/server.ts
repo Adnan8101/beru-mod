@@ -10,6 +10,7 @@ import {
   ChannelType,
 } from 'discord.js';
 import { EmbedColors } from '../types';
+import { createInfoEmbed } from '../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('server')
@@ -28,7 +29,7 @@ export async function execute(
 
   const guild = interaction.guild!;
   const requestFull = interaction.options.getBoolean('full') ?? false;
-  
+
   // Check if user has permissions for full details
   const member = guild.members.cache.get(interaction.user.id);
   const hasAdminPerms = member?.permissions.has(PermissionFlagsBits.ManageGuild) ?? false;
@@ -45,9 +46,7 @@ export async function execute(
   const threads = channels.filter(c => c.isThread()).size;
 
   // Create embed
-  const embed = new EmbedBuilder()
-    .setTitle(`📊 ${guild.name}`)
-    .setColor(EmbedColors.INFO)
+  const embed = createInfoEmbed(`📊 ${guild.name}`, '')
     .setThumbnail(guild.iconURL() ?? null);
 
   // Basic info
@@ -108,7 +107,7 @@ export async function execute(
   // Full details (admin only)
   if (showFull) {
     // Features
-    const features = guild.features.length > 0 
+    const features = guild.features.length > 0
       ? guild.features.map(f => `\`${f}\``).join(', ')
       : 'None';
 

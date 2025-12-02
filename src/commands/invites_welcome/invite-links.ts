@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder,
   User
 } from 'discord.js';
@@ -16,6 +16,10 @@ const slashCommand: SlashCommand = {
       option.setName('user')
         .setDescription('The user to check invite links for (optional)')
         .setRequired(false)),
+  category: 'invites_welcome',
+  syntax: '/invite-links [user]',
+  permission: 'None',
+  example: '/invite-links @user',
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -28,7 +32,7 @@ const slashCommand: SlashCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      const inviteTrackers = db.getInviteTrackers(guild.id, targetUser.id);
+      const inviteTrackers = await db.getInviteTrackers(guild.id, targetUser.id);
 
       if (inviteTrackers.length === 0) {
         const embed = new EmbedBuilder()
@@ -46,18 +50,18 @@ const slashCommand: SlashCommand = {
       }
 
       const fields = inviteTrackers.map((tracker, index) => {
-        const expiresText = tracker.expiresAt 
+        const expiresText = tracker.expiresAt
           ? `<t:${Math.floor(new Date(tracker.expiresAt).getTime() / 1000)}:R>`
           : 'Never';
-        
+
         const maxUsesText = tracker.maxUses ? tracker.maxUses.toString() : '∞';
-        
+
         return {
           name: `📎 Invite Link ${index + 1}`,
           value: `**Code:** \`${tracker.inviteCode}\`\n` +
-                 `**Uses:** ${tracker.uses}/${maxUsesText}\n` +
-                 `**Expires:** ${expiresText}\n` +
-                 `**Created:** <t:${Math.floor(new Date(tracker.createdAt).getTime() / 1000)}:R>`,
+            `**Uses:** ${tracker.uses}/${maxUsesText}\n` +
+            `**Expires:** ${expiresText}\n` +
+            `**Created:** <t:${Math.floor(new Date(tracker.createdAt).getTime() / 1000)}:R>`,
           inline: false
         };
       });
@@ -65,10 +69,10 @@ const slashCommand: SlashCommand = {
       // Split into multiple embeds if too many fields
       const embedsToSend: EmbedBuilder[] = [];
       const fieldsPerEmbed = 6;
-      
+
       for (let i = 0; i < fields.length; i += fieldsPerEmbed) {
         const currentFields = fields.slice(i, i + fieldsPerEmbed);
-        
+
         const embed = new EmbedBuilder()
           .setColor(0x00AE86)
           .setAuthor({
@@ -89,9 +93,9 @@ const slashCommand: SlashCommand = {
       await interaction.reply({ embeds: embedsToSend });
     } catch (error) {
       console.error('Error fetching invite links:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while fetching invite links.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while fetching invite links.',
+        ephemeral: true
       });
     }
   },
@@ -116,7 +120,7 @@ const prefixCommand: PrefixCommand = {
     if (args.length > 0) {
       const userMention = args[0];
       const userId = userMention.replace(/[<@!>]/g, '');
-      
+
       try {
         const member = await guild.members.fetch(userId).catch(() => null);
         if (member) {
@@ -133,7 +137,7 @@ const prefixCommand: PrefixCommand = {
 
     try {
       const db = DatabaseManager.getInstance();
-      const inviteTrackers = db.getInviteTrackers(guild.id, targetUser.id);
+      const inviteTrackers = await db.getInviteTrackers(guild.id, targetUser.id);
 
       if (inviteTrackers.length === 0) {
         const embed = new EmbedBuilder()
@@ -151,18 +155,18 @@ const prefixCommand: PrefixCommand = {
       }
 
       const fields = inviteTrackers.map((tracker, index) => {
-        const expiresText = tracker.expiresAt 
+        const expiresText = tracker.expiresAt
           ? `<t:${Math.floor(new Date(tracker.expiresAt).getTime() / 1000)}:R>`
           : 'Never';
-        
+
         const maxUsesText = tracker.maxUses ? tracker.maxUses.toString() : '∞';
-        
+
         return {
           name: `📎 Invite Link ${index + 1}`,
           value: `**Code:** \`${tracker.inviteCode}\`\n` +
-                 `**Uses:** ${tracker.uses}/${maxUsesText}\n` +
-                 `**Expires:** ${expiresText}\n` +
-                 `**Created:** <t:${Math.floor(new Date(tracker.createdAt).getTime() / 1000)}:R>`,
+            `**Uses:** ${tracker.uses}/${maxUsesText}\n` +
+            `**Expires:** ${expiresText}\n` +
+            `**Created:** <t:${Math.floor(new Date(tracker.createdAt).getTime() / 1000)}:R>`,
           inline: false
         };
       });
@@ -170,10 +174,10 @@ const prefixCommand: PrefixCommand = {
       // Split into multiple embeds if too many fields
       const embedsToSend: EmbedBuilder[] = [];
       const fieldsPerEmbed = 6;
-      
+
       for (let i = 0; i < fields.length; i += fieldsPerEmbed) {
         const currentFields = fields.slice(i, i + fieldsPerEmbed);
-        
+
         const embed = new EmbedBuilder()
           .setColor(0x00AE86)
           .setAuthor({

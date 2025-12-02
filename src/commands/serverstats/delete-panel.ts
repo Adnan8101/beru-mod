@@ -1,8 +1,8 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
+  PermissionFlagsBits,
   EmbedBuilder,
   GuildMember
 } from 'discord.js';
@@ -35,7 +35,7 @@ const slashCommand: SlashCommand = {
 
     const panelName = interaction.options.getString('name')!;
     const db = DatabaseManager.getInstance();
-    const panel = db.getPanel(interaction.guild.id, panelName);
+    const panel = await db.getPanel(interaction.guild.id, panelName);
 
     if (!panel) {
       await interaction.reply({ content: `Panel "${panelName}" not found.`, ephemeral: true });
@@ -46,7 +46,7 @@ const slashCommand: SlashCommand = {
 
     try {
       const guild = interaction.guild;
-      
+
       // Delete channels
       const channels = [
         panel.totalChannelId,
@@ -76,7 +76,7 @@ const slashCommand: SlashCommand = {
       }
 
       // Remove from database
-      const dbDeleted = db.deletePanel(interaction.guild.id, panelName);
+      const dbDeleted = await db.deletePanel(interaction.guild.id, panelName);
 
       if (dbDeleted) {
         const embed = new EmbedBuilder()
@@ -125,8 +125,8 @@ const prefixCommand: PrefixCommand = {
 
     if (args.length === 0) {
       const db = DatabaseManager.getInstance();
-      const panels = db.getPanels(message.guild.id);
-      
+      const panels = await db.getPanels(message.guild.id);
+
       if (panels.length === 0) {
         await message.reply('No panels found to delete.');
         return;
@@ -139,7 +139,7 @@ const prefixCommand: PrefixCommand = {
 
     const panelName = args.join(' ').replace(/['"]/g, '');
     const db = DatabaseManager.getInstance();
-    const panel = db.getPanel(message.guild.id, panelName);
+    const panel = await db.getPanel(message.guild.id, panelName);
 
     if (!panel) {
       await message.reply(`Panel "${panelName}" not found.`);
@@ -150,7 +150,7 @@ const prefixCommand: PrefixCommand = {
 
     try {
       const guild = message.guild;
-      
+
       // Delete channels
       const channels = [
         panel.totalChannelId,
@@ -180,7 +180,7 @@ const prefixCommand: PrefixCommand = {
       }
 
       // Remove from database
-      const dbDeleted = db.deletePanel(message.guild.id, panelName);
+      const dbDeleted = await db.deletePanel(message.guild.id, panelName);
 
       if (dbDeleted) {
         const embed = new EmbedBuilder()

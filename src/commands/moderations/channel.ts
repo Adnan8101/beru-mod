@@ -15,6 +15,7 @@ import { EmbedColors } from '../../types';
 import { CustomEmojis } from '../../utils/emoji';
 import { parseDuration, formatDuration } from '../../utils/moderation';
 import { LoggingService } from '../../services/LoggingService';
+import { createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('channel')
@@ -95,11 +96,11 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(subcommand =>
     subcommand
       .setName('slowmode')
-      .setDescription('Set slowmode for a channel')
+      .setDescription('Set channel slowmode')
       .addStringOption(option =>
         option
           .setName('duration')
-          .setDescription('Slowmode duration (e.g., 5s, 10s, 1m) or 0 to disable')
+          .setDescription('Slowmode duration (e.g. 5s, 1m, 1h)')
           .setRequired(true)
       )
       .addChannelOption(option =>
@@ -159,7 +160,7 @@ async function handleLock(
     });
 
     const embed = new EmbedBuilder()
-      .setTitle('🔒 Channel Locked')
+      .setTitle(`${CustomEmojis.TICK} Channel Locked`)
       .setDescription(`${channel} has been locked.`)
       .setColor(EmbedColors.SUCCESS)
       .addFields(
@@ -175,14 +176,13 @@ async function handleLock(
     await channel.send({
       embeds: [
         new EmbedBuilder()
-          .setDescription(`🔒 This channel has been locked by ${interaction.user}.`)
+          .setDescription(`${CustomEmojis.CAUTION} This channel has been locked by ${interaction.user}.`)
           .setColor(EmbedColors.WARNING),
       ],
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to lock channel: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to lock channel: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -203,7 +203,7 @@ async function handleUnlock(
     });
 
     const embed = new EmbedBuilder()
-      .setTitle('🔓 Channel Unlocked')
+      .setTitle(`${CustomEmojis.TICK} Channel Unlocked`)
       .setDescription(`${channel} has been unlocked.`)
       .setColor(EmbedColors.SUCCESS)
       .addFields(
@@ -219,14 +219,13 @@ async function handleUnlock(
     await channel.send({
       embeds: [
         new EmbedBuilder()
-          .setDescription(`🔓 This channel has been unlocked by ${interaction.user}.`)
+          .setDescription(`${CustomEmojis.TICK} This channel has been unlocked by ${interaction.user}.`)
           .setColor(EmbedColors.SUCCESS),
       ],
     });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to unlock channel: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to unlock channel: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -247,7 +246,7 @@ async function handleHide(
     });
 
     const embed = new EmbedBuilder()
-      .setTitle('👁️ Channel Hidden')
+      .setTitle(`${CustomEmojis.TICK} Channel Hidden`)
       .setDescription(`${channel} has been hidden from @everyone.`)
       .setColor(EmbedColors.SUCCESS)
       .addFields(
@@ -259,9 +258,8 @@ async function handleHide(
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to hide channel: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to hide channel: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -282,7 +280,7 @@ async function handleUnhide(
     });
 
     const embed = new EmbedBuilder()
-      .setTitle('👁️ Channel Unhidden')
+      .setTitle(`${CustomEmojis.TICK} Channel Unhidden`)
       .setDescription(`${channel} is now visible to @everyone.`)
       .setColor(EmbedColors.SUCCESS)
       .addFields(
@@ -294,9 +292,8 @@ async function handleUnhide(
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to unhide channel: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to unhide channel: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }
 
@@ -318,9 +315,8 @@ async function handleSlowmode(
   } else {
     const parsed = parseDuration(durationStr);
     if (!parsed) {
-      await interaction.editReply({
-        content: '❌ Invalid duration format. Use formats like: 5s, 10s, 1m or 0 to disable',
-      });
+      const errorEmbed = createErrorEmbed('Invalid duration format. Use formats like: 5s, 10s, 1m or 0 to disable');
+      await interaction.editReply({ embeds: [errorEmbed] });
       return;
     }
     duration = Math.floor(parsed / 1000); // Convert to seconds
@@ -328,9 +324,8 @@ async function handleSlowmode(
 
   // Max 6 hours (21600 seconds)
   if (duration > 21600) {
-    await interaction.editReply({
-      content: '❌ Slowmode duration cannot exceed 6 hours.',
-    });
+    const errorEmbed = createErrorEmbed('Slowmode duration cannot exceed 6 hours.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -338,7 +333,7 @@ async function handleSlowmode(
     await channel.setRateLimitPerUser(duration, reason);
 
     const embed = new EmbedBuilder()
-      .setTitle(duration === 0 ? '⏱️ Slowmode Disabled' : '⏱️ Slowmode Enabled')
+      .setTitle(duration === 0 ? `${CustomEmojis.TICK} Slowmode Disabled` : `${CustomEmojis.TICK} Slowmode Enabled`)
       .setDescription(
         duration === 0
           ? `Slowmode has been disabled in ${channel}.`
@@ -355,8 +350,7 @@ async function handleSlowmode(
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to set slowmode: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to set slowmode: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

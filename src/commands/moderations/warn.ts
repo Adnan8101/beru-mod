@@ -13,6 +13,7 @@ import { CustomEmojis } from '../../utils/emoji';
 import { canModerate } from '../../utils/moderation';
 import { ModerationService } from '../../services/ModerationService';
 import { LoggingService } from '../../services/LoggingService';
+import { createModerationEmbed, createErrorEmbed } from '../../utils/embedHelpers';
 
 export const data = new SlashCommandBuilder()
   .setName('warn')
@@ -28,8 +29,13 @@ export const data = new SlashCommandBuilder()
     option
       .setName('reason')
       .setDescription('Reason for the warning')
-      .setRequired(false)
+      .setRequired(true)
   );
+
+export const category = 'moderation';
+export const syntax = '!warn <user> <reason>';
+export const example = '!warn @user Breaking rules';
+export const permission = 'Moderate Members';
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
@@ -47,18 +53,16 @@ export async function execute(
   try {
     target = await guild.members.fetch(user.id);
   } catch {
-    await interaction.editReply({
-      content: '❌ User is not a member of this server.',
-    });
+    const errorEmbed = createErrorEmbed('User is not a member of this server.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
   // Check permissions
   const moderatorCheck = canModerate(moderator, target, PermissionFlagsBits.ModerateMembers);
   if (!moderatorCheck.allowed) {
-    await interaction.editReply({
-      content: `❌ ${moderatorCheck.reason}`,
-    });
+    const errorEmbed = createErrorEmbed(moderatorCheck.reason || 'You cannot moderate this user.');
+    await interaction.editReply({ embeds: [errorEmbed] });
     return;
   }
 
@@ -67,17 +71,13 @@ export async function execute(
     await services.moderationService.addWarn(guild.id, target.id, interaction.user.id, reason);
     const warnCount = await services.moderationService.getWarnCount(guild.id, target.id);
 
-    const embed = new EmbedBuilder()
-      .setTitle('⚠️ Member Warned')
-      .setDescription(`${target.user.tag} has been warned.`)
-      .setColor(EmbedColors.WARNING)
-      .addFields(
-        { name: 'User', value: `${target.user.tag} (${target.id})`, inline: true },
-        { name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
-        { name: 'Total Warnings', value: warnCount.toString(), inline: true },
-        { name: 'Reason', value: reason, inline: false }
-      )
-      .setTimestamp();
+    const embed = createModerationEmbed(
+      'Warned',
+      target.user,
+      interaction.user,
+      reason,
+      [{ name: 'Total Warnings', value: warnCount.toString(), inline: true }]
+    );
 
     await interaction.editReply({ embeds: [embed] });
 
@@ -92,7 +92,7 @@ export async function execute(
     // Try to DM the user
     try {
       const dmEmbed = new EmbedBuilder()
-        .setTitle(`⚠️ Warning in ${guild.name}`)
+        .setTitle(`${CustomEmojis.CAUTION} Warning in ${guild.name}`)
         .setColor(EmbedColors.WARNING)
         .addFields(
           { name: 'Reason', value: reason, inline: false },
@@ -105,8 +105,7 @@ export async function execute(
       // DM failed, ignore
     }
   } catch (error: any) {
-    await interaction.editReply({
-      content: `❌ Failed to warn member: ${error.message}`,
-    });
+    const errorEmbed = createErrorEmbed(`Failed to warn member: ${error.message}`);
+    await interaction.editReply({ embeds: [errorEmbed] });
   }
 }

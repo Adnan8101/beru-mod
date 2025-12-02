@@ -1,7 +1,7 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
-  Message, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  Message,
   EmbedBuilder
 } from 'discord.js';
 import { SlashCommand, PrefixCommand } from '../../types';
@@ -26,24 +26,24 @@ const slashCommand: SlashCommand = {
       const welcomeConfig = await db.getWelcomeConfig(guild.id);
 
       if (!welcomeConfig || !welcomeConfig.leaveChannelId) {
-        await interaction.reply({ 
-          content: '❌ Leave channel not setup! Use `/leave` to set a channel first.', 
-          ephemeral: true 
+        await interaction.reply({
+          content: '❌ Leave channel not setup! Use `/leave` to set a channel first.',
+          ephemeral: true
         });
         return;
       }
 
       const leaveChannel = await guild.channels.fetch(welcomeConfig.leaveChannelId).catch(() => null);
       if (!leaveChannel || !leaveChannel.isTextBased()) {
-        await interaction.reply({ 
-          content: '❌ Leave channel not found or is not a text channel!', 
-          ephemeral: true 
+        await interaction.reply({
+          content: '❌ Leave channel not found or is not a text channel!',
+          ephemeral: true
         });
         return;
       }
 
       // Simulate invite data for the test
-      const inviteData = db.getInviteData(guild.id, user.id);
+      const inviteData = await db.getInviteData(guild.id, user.id);
       let inviterName = 'UnKnown';
 
       if (inviteData && inviteData.inviterId) {
@@ -55,22 +55,22 @@ const slashCommand: SlashCommand = {
 
       // Check if it was a vanity invite
       const isVanity = inviteData?.isVanity || false;
-      const leaveMessage = isVanity 
+      const leaveMessage = isVanity
         ? `**${user.username}** left the server. They joined using the **vanity invite**.`
         : `**${user.username}** left the server. They joined using the **${inviterName}** link.`;
 
       // Send the test leave message
       await leaveChannel.send(leaveMessage);
 
-      await interaction.reply({ 
-        content: `<:tcet_tick:1437995479567962184> Test leave message sent to ${leaveChannel.toString()}!`, 
-        ephemeral: true 
+      await interaction.reply({
+        content: `<:tcet_tick:1437995479567962184> Test leave message sent to ${leaveChannel.toString()}!`,
+        ephemeral: true
       });
     } catch (error) {
       console.error('Error sending test leave:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while sending the test leave message.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: 'An error occurred while sending the test leave message.',
+        ephemeral: true
       });
     }
   },
@@ -108,7 +108,7 @@ const prefixCommand: PrefixCommand = {
       }
 
       // Simulate invite data for the test
-      const inviteData = db.getInviteData(guild.id, user.id);
+      const inviteData = await db.getInviteData(guild.id, user.id);
       let inviterName = 'UnKnown';
 
       if (inviteData && inviteData.inviterId) {
@@ -120,7 +120,7 @@ const prefixCommand: PrefixCommand = {
 
       // Check if it was a vanity invite
       const isVanity = inviteData?.isVanity || false;
-      const leaveMessage = isVanity 
+      const leaveMessage = isVanity
         ? `**${user.username}** left the server. They joined using the **vanity invite**.`
         : `**${user.username}** left the server. They joined using the **${inviterName}** link.`;
 
